@@ -86,7 +86,7 @@ export function ReadingLogScreen() {
 
   if (!book) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <Header title="Reading log" back />
         <EmptyState illustration="shelf" title="That book is not here" />
       </Screen>
@@ -94,7 +94,7 @@ export function ReadingLogScreen() {
   }
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Reading log" subtitle={book.title} back />
 
       <ScrollView contentContainerStyle={{ padding: theme.space.lg, paddingBottom: 120 }}>

@@ -41,7 +41,7 @@ export function ThemesScreen() {
   const patch = useSettingsStore((s) => s.patch);
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Themes" subtitle="Pick a room to read in" back />
 
       <ScrollView contentContainerStyle={{ padding: theme.space.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>

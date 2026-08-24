@@ -105,7 +105,7 @@ export function NoteEditorScreen() {
   };
 
   return (
-    <Screen edges={['top']} ambience={false}>
+    <Screen edges={['top', 'bottom']} ambience={false}>
       <View style={[styles.topBar, { paddingHorizontal: theme.space.lg }]}>
         <IconButton name="chevron-down" label="Close" onPress={() => navigation.goBack()} />
         <View style={{ flex: 1, alignItems: 'center' }}>

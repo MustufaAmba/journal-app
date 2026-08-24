@@ -49,7 +49,7 @@ export function AchievementsScreen() {
   }, [markAllSeen]);
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Postcards" subtitle={cards.length ? `${cards.length} kept` : undefined} back />
 
       {!cards.length ? (

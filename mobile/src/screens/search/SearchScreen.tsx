@@ -111,7 +111,7 @@ export function SearchScreen() {
     mine.journal.length + mine.notes.length + mine.quotes.length + mine.shelf.length > 0;
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <View style={[styles.topBar, { paddingHorizontal: theme.space.lg }]}>
         <IconButton name="chevron-down" label="Close search" onPress={() => navigation.goBack()} />
         <View style={{ flex: 1, marginLeft: theme.space.md }}>

@@ -32,7 +32,7 @@ export function AuthorScreen() {
   const lifespan = [author?.birthDate, author?.deathDate].filter(Boolean).join(' – ');
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title={name} back />
 
       {isLoading ? (

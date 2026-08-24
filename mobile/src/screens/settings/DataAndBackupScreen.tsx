@@ -78,7 +78,7 @@ export function DataAndBackupScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Export & backup" back />
 
       <ScrollView contentContainerStyle={{ padding: theme.space.lg, paddingBottom: 120 }}>

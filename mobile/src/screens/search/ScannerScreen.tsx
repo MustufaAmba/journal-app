@@ -104,7 +104,7 @@ export function ScannerScreen() {
 
   if (!permission) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <View style={styles.centered}>
           <ActivityIndicator color={theme.colors.accent} />
         </View>
@@ -114,7 +114,7 @@ export function ScannerScreen() {
 
   if (!permission.granted) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <View style={[styles.topBar, { paddingHorizontal: theme.space.lg }]}>
           <IconButton name="chevron-back" label="Go back" onPress={() => navigation.goBack()} />
         </View>

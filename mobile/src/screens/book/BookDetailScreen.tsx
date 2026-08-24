@@ -93,7 +93,7 @@ export function BookDetailScreen() {
 
   if (!book) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <View style={styles.centered}>
           <Text variant="body" tone="inkFaint">
             {isLoading ? 'Fetching the book…' : 'That book could not be found.'}

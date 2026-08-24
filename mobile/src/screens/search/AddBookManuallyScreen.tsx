@@ -80,7 +80,7 @@ export function AddBookManuallyScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Add a book by hand" back />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>

@@ -174,7 +174,7 @@ export function JournalEntryScreen() {
 
   if (!draft) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <View style={styles.centered}>
           <Text tone="inkFaint">That entry is no longer here.</Text>
         </View>
@@ -185,7 +185,7 @@ export function JournalEntryScreen() {
   const currentMood = MOODS.find((m) => m.id === draft.mood);
 
   return (
-    <Screen edges={['top']} ambience={false}>
+    <Screen edges={['top', 'bottom']} ambience={false}>
       <View style={[styles.topBar, { paddingHorizontal: theme.space.lg }]}>
         <IconButton name="chevron-down" label="Close" onPress={() => navigation.goBack()} />
         <View style={{ flex: 1, alignItems: 'center' }}>

@@ -89,7 +89,7 @@ export function GoalsScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Reading goals" back />
 
       <ScrollView contentContainerStyle={{ padding: theme.space.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>

@@ -52,7 +52,7 @@ export function StatsScreen() {
 
   if (!hasData) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <Header title="Statistics" back />
         <EmptyState
           illustration="bookcase"
@@ -64,7 +64,7 @@ export function StatsScreen() {
   }
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="Statistics" subtitle="Everything you have read, counted up" back />
 
       <ScrollView contentContainerStyle={{ padding: theme.space.lg, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>

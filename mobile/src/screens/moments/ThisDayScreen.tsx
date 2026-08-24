@@ -45,7 +45,7 @@ export function ThisDayScreen() {
   const dateLabel = useMemo(() => format(today, 'd MMMM'), [today]);
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header title="This day in reading" subtitle={dateLabel} back />
 
       {isEmpty ? (

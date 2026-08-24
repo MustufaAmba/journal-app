@@ -63,7 +63,7 @@ export function DedicationWriteScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <Header
         title={firstRun ? 'The first page' : 'Dedication'}
         back={!firstRun}
