@@ -40,6 +40,11 @@ import { HealthModule } from './health/health.module';
           uri,
           // Fail fast rather than hanging the app while Mongo is starting.
           serverSelectionTimeoutMS: 8000,
+          // Enough to ride out a brief blip while Atlas wakes, without
+          // printing ten identical stack traces before giving up. The
+          // explanation in main.ts is far more use than the tenth retry.
+          retryAttempts: 3,
+          retryDelay: 2000,
         };
       },
     }),

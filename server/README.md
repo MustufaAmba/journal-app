@@ -202,6 +202,13 @@ curl https://YOUR-SERVICE.onrender.com/health
 `database: "connected"` is the part that matters — `ok` with `disconnected`
 means the Atlas URI or the network allow-list is wrong.
 
+If the service will not start, the log says which of the two it is rather than
+printing a topology dump. The one worth knowing in advance:
+
+> `SSL alert number 80` / `tlsv1 alert internal error` is **not** a certificate
+> problem. Atlas refuses a non-allowlisted IP during the TLS handshake, so a
+> missing `0.0.0.0/0` entry surfaces as an SSL error.
+
 ### 4. Point the app at it
 
 The API URL is **compiled into the APK**, not read at runtime. Set it in
