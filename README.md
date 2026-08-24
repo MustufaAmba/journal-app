@@ -32,12 +32,35 @@ Then press `i` for the iOS simulator, `a` for Android, or scan the QR code with
 the Expo Go app. On the welcome screen, choose **"Just let me in — no account"**
 and it works immediately.
 
-The backend, if you want it:
+The backend, if you want it — locally:
 
 ```bash
 cp .env.example .env      # then fill in the two JWT secrets
 docker compose up --build
 ```
+
+…or hosted, so an installed APK can back itself up:
+**[deploy to Render in ten minutes](server/README.md#deploying-to-render)**
+(free tier, with MongoDB Atlas for the database).
+
+## Giving it to someone
+
+No app store needed — build an APK and send it.
+
+```bash
+# 1. deploy the backend, then put its URL in mobile/eas.json
+# 2. build
+cd mobile
+npx eas build --profile preview --platform android
+```
+
+EAS gives you a download link for the `.apk`. The recipient enables
+"install from unknown sources" once and that is it.
+
+One thing to get right: `EXPO_PUBLIC_API_URL` is **compiled into the APK**, so
+it has to be set in `mobile/eas.json` *before* the build. Get it wrong and the
+app still works flawlessly offline — which is exactly why the mistake is easy
+to miss.
 
 ---
 

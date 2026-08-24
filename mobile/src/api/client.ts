@@ -117,12 +117,27 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'DELETE' }),
 };
 
-/** Is the backend reachable at all? Used to decide whether to drain the sync queue. */
+/**
+ * Is the backend reachable at all? Used to decide whether to drain the queue.
+ *
+ * Two stages on purpose. Free hosting tiers (Render, Fly, Railway) suspend an
+ * idle instance and take the better part of a minute to boot it again, so a
+ * single short probe would report "offline" forever and sync would never once
+ * run. The quick probe keeps the common, warm case snappy; the patient one
+ * gives a sleeping server time to get up.
+ */
 export async function pingBackend(): Promise<boolean> {
   try {
-    await rawRequest<{ status: string }>('/health', { anonymous: true, timeoutMs: 4000 });
+    await rawRequest<{ status: string }>('/health', { anonymous: true, timeoutMs: 5000 });
     return true;
   } catch {
-    return false;
+    // Nothing is waiting on this — the app is local-first and the reader has
+    // already moved on — so it can afford to wait for a cold start.
+    try {
+      await rawRequest<{ status: string }>('/health', { anonymous: true, timeoutMs: 60_000 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

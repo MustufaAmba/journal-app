@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#F5EBDC"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.marginalia.bookjournal",
@@ -33,9 +35,17 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["CAMERA", "RECORD_AUDIO", "VIBRATE", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "VIBRATE",
+        "READ_MEDIA_IMAGES"
+      ]
     },
-    "web": { "favicon": "./assets/favicon.png", "bundler": "metro" },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
     "plugins": [
       "expo-image",
       "expo-font",
@@ -45,12 +55,24 @@
       "expo-web-browser",
       "expo-audio",
       "expo-localization",
-      ["expo-camera", { "cameraPermission": "Marginalia uses the camera to scan book barcodes." }],
-      ["expo-image-picker", { "photosPermission": "Marginalia lets you attach photos to your journal entries." }],
-      ["expo-notifications", { "color": "#8C5A3C" }]
-    ],
-    "extra": {
-      "apiUrl": "http://localhost:4000"
-    }
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Marginalia uses the camera to scan book barcodes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Marginalia lets you attach photos to your journal entries."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#8C5A3C"
+        }
+      ]
+    ]
   }
 }

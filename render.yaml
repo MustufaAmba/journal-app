@@ -1,0 +1,54 @@
+# Render Blueprint — deploys the Marginalia API.
+#
+# In Render: New → Blueprint → pick this repository. Render reads this file,
+# generates both JWT secrets for you, and asks for the one value it cannot
+# invent: your MongoDB connection string.
+#
+# Render has no managed MongoDB, so the database lives on MongoDB Atlas
+# (the free M0 tier is more than enough for one reader). See server/README.md.
+
+services:
+  - type: web
+    name: marginalia-api
+    runtime: node
+    plan: free
+    region: oregon          # or frankfurt / singapore / ohio / virginia
+    rootDir: server
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/main
+
+    # Render waits for this to return 200 before routing traffic to a new
+    # deploy, so a bad build never replaces a working one.
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.1
+
+      - key: NODE_ENV
+        value: production
+
+      # Generated once by Render and kept secret. Never printed, never in git.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+      # Render prompts for this on first deploy.
+      # Format: mongodb+srv://user:password@cluster.xxxxx.mongodb.net/marginalia
+      - key: MONGODB_URI
+        sync: false
+
+      # Optional. Leave unset unless you want Google sign-in.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # Optional. Only raises the rate limit on the book-metadata fallback.
+      - key: GOOGLE_BOOKS_API_KEY
+        sync: false
+
+    # CORS_ORIGINS is deliberately unset: a phone sends no Origin header, so
+    # leaving it empty means "the app only", which is exactly right when the
+    # only client is an APK.

@@ -1,0 +1,42 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "//": [
+      "EXPO_PUBLIC_* variables are inlined into the JavaScript bundle at build",
+      "time, not read at runtime. The API URL therefore has to be set HERE,",
+      "before the APK is built — an APK built without it points at localhost",
+      "and sync silently never happens."
+    ],
+
+    "preview": {
+      "//": "The profile that produces a shareable APK.",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://marginalia-api.onrender.com"
+      }
+    },
+
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+
+    "production": {
+      "//": "Play Store bundle. Not needed if you are only sharing an APK.",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://marginalia-api.onrender.com"
+      }
+    }
+  }
+}

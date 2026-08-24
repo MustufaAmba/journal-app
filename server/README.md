@@ -118,7 +118,101 @@ npm test
 Nine tests: the sync semantics above (against a real MongoDB, skipped
 automatically if none is reachable) and the token-hashing regression.
 
-## Deploying
+## Deploying to Render
+
+Render has no managed MongoDB, so the database goes on **MongoDB Atlas** (free
+M0 tier) and only the API runs on Render. About ten minutes, start to finish.
+
+### 1. The database — MongoDB Atlas
+
+1. Create a free account, then **Build a Database → M0 (Free)**.
+2. **Database Access →** add a user. Use a generated password and copy it now.
+3. **Network Access →** add `0.0.0.0/0`. Render's free tier has no fixed
+   outbound IP, so there is nothing narrower to allow-list. The database is
+   still protected by the username and password.
+4. **Connect → Drivers** and copy the string. Add the database name before the
+   query string:
+
+   ```
+   mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority
+                                                          ^^^^^^^^^^^
+   ```
+
+   If the password contains `@ : / ? # [ ] %`, percent-encode it or the URI
+   will not parse.
+
+### 2. The API — Render
+
+Push this repository to GitHub, then in Render:
+
+**New → Blueprint → select the repository → Apply.**
+
+Render reads [`render.yaml`](../render.yaml) at the repository root and sets
+everything up: the build and start commands, the `/health` check, and both JWT
+secrets, which it generates itself. The only thing it asks you for is
+`MONGODB_URI` — paste the Atlas string from step 1.
+
+There is nothing to configure in the dashboard afterwards. To do it by hand
+instead of via the blueprint, the equivalent settings are:
+
+| Setting | Value |
+|---|---|
+| Root directory | `server` |
+| Build command | `npm ci && npm run build` |
+| Start command | `node dist/main` |
+| Health check path | `/health` |
+| Env | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `NODE_ENV=production` |
+
+Render injects `PORT` itself; the app already reads it and binds `0.0.0.0`.
+
+### 3. Check it
+
+```bash
+curl https://YOUR-SERVICE.onrender.com/health
+# {"status":"ok","database":"connected",...}
+```
+
+`database: "connected"` is the part that matters — `ok` with `disconnected`
+means the Atlas URI or the network allow-list is wrong.
+
+### 4. Point the app at it
+
+The API URL is **compiled into the APK**, not read at runtime. Set it in
+[`mobile/eas.json`](../mobile/eas.json) before building:
+
+```json
+"preview": {
+  "env": { "EXPO_PUBLIC_API_URL": "https://YOUR-SERVICE.onrender.com" }
+}
+```
+
+Then build the APK:
+
+```bash
+cd mobile
+npx eas build --profile preview --platform android
+```
+
+An APK built without that variable points at `localhost`, and sync will
+silently never run — the app keeps working perfectly offline, which makes the
+mistake easy to miss.
+
+### About the free tier
+
+A free Render service **sleeps after 15 minutes of inactivity** and takes
+roughly 50 seconds to wake. This is fine here, by design: the app is
+local-first, so nothing the reader does ever waits on the server. The client's
+health check allows a full minute for a cold start before deciding it is
+offline, and anything unsynced stays queued until next time.
+
+If you would rather it stayed awake, either move to Render's paid Starter plan
+or point a free uptime monitor (UptimeRobot, Better Stack) at `/health` every
+ten minutes.
+
+Atlas's free tier does not sleep, so nothing is ever lost while the API is
+suspended.
+
+## Deploying elsewhere
 
 The `Dockerfile` is a two-stage build that runs as a non-root user and has a
 real health check. Anywhere that runs a container and can reach a MongoDB will
