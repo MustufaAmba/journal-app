@@ -1,11 +1,13 @@
 # Render Blueprint — deploys the Marginalia API.
 #
-# In Render: New → Blueprint → pick this repository. Render reads this file,
-# generates both JWT secrets for you, and asks for the one value it cannot
-# invent: your MongoDB connection string.
+# In Render: New → Blueprint → pick this repository → Apply.
+#
+# Render generates both JWT secrets itself and asks you for exactly one value:
+# MONGODB_URI. Everything else has a working default.
 #
 # Render has no managed MongoDB, so the database lives on MongoDB Atlas
-# (the free M0 tier is more than enough for one reader). See server/README.md.
+# (the free M0 tier is far more than one reader needs).
+# Full walkthrough: server/README.md#deploying-to-render
 
 services:
   - type: web
@@ -28,27 +30,36 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Generated once by Render and kept secret. Never printed, never in git.
+      # Generated once by Render, never shown in git or in a log.
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
 
-      # Render prompts for this on first deploy.
-      # Format: mongodb+srv://user:password@cluster.xxxxx.mongodb.net/marginalia
+      # The one thing Render will prompt you for.
+      # mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority
       - key: MONGODB_URI
         sync: false
 
-      # Optional. Leave unset unless you want Google sign-in.
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-
-      # Optional. Only raises the rate limit on the book-metadata fallback.
-      - key: GOOGLE_BOOKS_API_KEY
-        sync: false
-
-    # CORS_ORIGINS is deliberately unset: a phone sends no Origin header, so
-    # leaving it empty means "the app only", which is exactly right when the
-    # only client is an APK.
+# ---------------------------------------------------------------------------
+# Deliberately not listed above, so the blueprint only asks you for one thing.
+# All of these are optional; add them in the Render dashboard later if wanted.
+#
+#   JWT_ACCESS_TTL          default 30m
+#   JWT_REFRESH_TTL         default 60d
+#   CORS_ORIGINS            leave unset — a phone sends no Origin header, so
+#                           empty means "the app only", which is right when the
+#                           only client is an APK. Set it only if a website
+#                           ever needs to call this API.
+#   GOOGLE_BOOKS_API_KEY    only raises the rate limit on the metadata fallback
+#
+# For Google sign-in you need all three, and the callback must point at your
+# Render URL — the default is localhost and will not work in production:
+#
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
+#   GOOGLE_CALLBACK_URL     https://YOUR-SERVICE.onrender.com/auth/google/callback
+#
+# Leave all three unset and Google sign-in simply does not exist; email
+# accounts and guest mode are unaffected.
+# ---------------------------------------------------------------------------

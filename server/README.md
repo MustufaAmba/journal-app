@@ -22,17 +22,39 @@ npm run dev               # http://localhost:4000
 
 ## Configuration
 
+**Three values need filling in. Everything else already has a working default.**
+
+| Variable | | Notes |
+|---|---|---|
+| `MONGODB_URI` | **required** | `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority` |
+| `JWT_ACCESS_SECRET` | **required** | `openssl rand -base64 48` |
+| `JWT_REFRESH_SECRET` | **required** | The same command again — a *different* value |
+
+On Render both secrets are generated for you, so `MONGODB_URI` is the only
+thing you are asked for.
+
+<details>
+<summary>The rest, all optional</summary>
+
 | Variable | Default | Notes |
 |---|---|---|
-| `PORT` | `4000` | |
-| `MONGODB_URI` | `mongodb://localhost:27017/marginalia` | |
-| `JWT_ACCESS_SECRET` | — | **Required.** `openssl rand -base64 48` |
-| `JWT_REFRESH_SECRET` | — | **Required**, and different from the above. |
+| `PORT` | `4000` | Render injects this; do not set it there. |
+| `NODE_ENV` | `development` | |
 | `JWT_ACCESS_TTL` | `30m` | |
-| `JWT_REFRESH_TTL` | `60d` | |
-| `CORS_ORIGINS` | *(empty)* | Comma-separated. Empty means "phones only" — a mobile app sends no `Origin`. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | *(empty)* | Leave blank and Google sign-in simply does not exist. |
-| `GOOGLE_BOOKS_API_KEY` | *(empty)* | Only raises the rate limit on the metadata fallback. |
+| `JWT_REFRESH_TTL` | `60d` | How long before a reader has to sign in again. |
+| `CORS_ORIGINS` | *(empty)* | Comma-separated. Empty means "the app only" — a phone sends no `Origin` header. Only needed if a website calls this API. |
+| `GOOGLE_BOOKS_API_KEY` | *(empty)* | Only raises the rate limit on the metadata fallback. Open Library needs no key. |
+
+**Google sign-in** needs all three, or none. Unset, the feature simply does not
+exist and email accounts and guest mode are unaffected.
+
+| Variable | Notes |
+|---|---|
+| `GOOGLE_CLIENT_ID` | From the Google Cloud console |
+| `GOOGLE_CLIENT_SECRET` | |
+| `GOOGLE_CALLBACK_URL` | **Must be your real URL in production** — `https://your-service.onrender.com/auth/google/callback`. The default is localhost and will not work once deployed. |
+
+</details>
 
 ## API
 
