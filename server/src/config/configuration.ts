@@ -10,6 +10,44 @@ const list = (value?: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+/**
+ * Catches connection strings that will never work, and says why.
+ *
+ * Atlas offers several "Connect" options and only one of them is the driver
+ * string. The SQL / Data Federation endpoint in particular looks plausible but
+ * speaks a different protocol, and the driver's own error for it is a generic
+ * "check your IP allowlist", which sends you looking in the wrong place
+ * entirely. Better to refuse it at boot with a straight answer.
+ */
+export function describeBadMongoUri(uri: string): string | null {
+  if (!uri.trim()) return 'MONGODB_URI is empty.';
+
+  if (!/^mongodb(\+srv)?:\/\//.test(uri)) {
+    return 'MONGODB_URI must start with mongodb:// or mongodb+srv://';
+  }
+
+  if (uri.includes('atlas-sql-') || uri.includes('.query.mongodb.net')) {
+    return [
+      'That is the Atlas SQL / Data Federation endpoint, not the database.',
+      'In Atlas use Connect → Drivers, and copy the string that looks like:',
+      '  mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/marginalia',
+    ].join('\n  ');
+  }
+
+  if (/<[^>]+>/.test(uri)) {
+    return 'MONGODB_URI still contains a placeholder like <password> — substitute the real value.';
+  }
+
+  if (/mongodb\+srv:\/\/[^/]*@[^/?]+\/?(\?|$)/.test(uri)) {
+    return [
+      'MONGODB_URI has no database name, so everything would be written to "test".',
+      'Add it before the query string:  ...mongodb.net/marginalia?retryWrites=true',
+    ].join('\n  ');
+  }
+
+  return null;
+}
+
 export const configuration = () => ({
   port: Number.parseInt(process.env.PORT ?? '4000', 10),
   env: process.env.NODE_ENV ?? 'development',

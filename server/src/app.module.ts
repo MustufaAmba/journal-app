@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
-import { configuration } from './config/configuration';
+import { configuration, describeBadMongoUri } from './config/configuration';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 import { UsersModule } from './users/users.module';
@@ -25,11 +25,23 @@ import { HealthModule } from './health/health.module';
 
     MongooseModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('mongo.uri'),
-        // Fail fast rather than hanging the app while Mongo is starting.
-        serverSelectionTimeoutMS: 8000,
-      }),
+      useFactory: (config: ConfigService) => {
+        const uri = config.get<string>('mongo.uri') ?? '';
+
+        // Refuse an unusable connection string with an explanation, rather
+        // than letting the driver retry ten times and then print a hundred
+        // lines of topology internals.
+        const problem = describeBadMongoUri(uri);
+        if (problem) {
+          throw new Error(`Cannot start — MONGODB_URI is wrong.\n  ${problem}`);
+        }
+
+        return {
+          uri,
+          // Fail fast rather than hanging the app while Mongo is starting.
+          serverSelectionTimeoutMS: 8000,
+        };
+      },
     }),
 
     // A personal app does not need aggressive limits, only a backstop.

@@ -36,10 +36,15 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO",
-        "VIBRATE",
-        "READ_MEDIA_IMAGES"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -73,6 +78,11 @@
           "color": "#8C5A3C"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8517de98-4737-4890-953e-3f89e2adc71a"
+      }
+    }
   }
 }
