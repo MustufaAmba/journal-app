@@ -39,6 +39,15 @@ EXPO_PUBLIC_API_URL=http://localhost:4000      # backup/sync server
 EXPO_PUBLIC_GOOGLE_BOOKS_KEY=…                 # raises the Google Books rate limit
 ```
 
+`EXPO_PUBLIC_*` values are **inlined into the bundle at build time**, not read
+at runtime. For a release build that means setting them in `eas.json` before
+building — an APK built without `EXPO_PUBLIC_API_URL` points at `localhost` and
+silently never syncs. The app keeps working perfectly offline, which is exactly
+why the mistake is easy to miss.
+
+Note that `eas.json` is validated against a strict schema, so it cannot carry
+`"//"` comment keys.
+
 ## How it is put together
 
 ```
