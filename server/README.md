@@ -180,12 +180,17 @@ instead of via the blueprint, the equivalent settings are:
 | Setting | Value |
 |---|---|
 | Root directory | `server` |
-| Build command | `npm ci && npm run build` |
+| Build command | `npm ci --include=dev && npm run build` |
 | Start command | `node dist/main` |
 | Health check path | `/health` |
 | Env | `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `NODE_ENV=production` |
 
 Render injects `PORT` itself; the app already reads it and binds `0.0.0.0`.
+
+`--include=dev` on the build command matters: `NODE_ENV=production` applies to
+the build as well as the run, and npm skips devDependencies when it is set — so
+a plain `npm ci` omits the Nest CLI and the build fails with `nest: not found`.
+The compiled output in `dist/` needs no dev dependency at runtime.
 
 ### 3. Check it
 

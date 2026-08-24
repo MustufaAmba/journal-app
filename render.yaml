@@ -16,7 +16,11 @@ services:
     plan: free
     region: oregon          # or frankfurt / singapore / ohio / virginia
     rootDir: server
-    buildCommand: npm ci && npm run build
+    # --include=dev is load-bearing: NODE_ENV=production below applies to the
+    # build too, and npm skips devDependencies when it is set — so a plain
+    # `npm ci` leaves out the Nest CLI and the build dies with "nest: not
+    # found". The compiled output needs none of it at runtime.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node dist/main
 
     # Render waits for this to return 200 before routing traffic to a new
