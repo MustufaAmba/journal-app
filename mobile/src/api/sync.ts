@@ -1,0 +1,169 @@
+import { api, pingBackend } from './client';
+import { useSyncStore } from '@/store/useSyncStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useLibraryStore } from '@/store/useLibraryStore';
+import { useJournalStore } from '@/store/useJournalStore';
+import { useQuotesStore } from '@/store/useQuotesStore';
+import { useNotesStore } from '@/store/useNotesStore';
+import { useSessionsStore } from '@/store/useSessionsStore';
+import { useGoalsStore } from '@/store/useGoalsStore';
+import type { SyncOp } from '@/types';
+
+/**
+ * Drains the offline queue.
+ *
+ * Rules:
+ *  - guests never sync (there is nothing to sync to)
+ *  - a failed batch never blocks the app; it stays queued and retries later
+ *  - operations are sent oldest-first so the server sees edits in order
+ */
+
+const ENDPOINTS: Record<SyncOp['entity'], string> = {
+  library: '/library',
+  journal: '/journal',
+  quote: '/quotes',
+  note: '/notes',
+  session: '/sessions',
+  goals: '/goals',
+  profile: '/profile',
+};
+
+const BATCH_SIZE = 25;
+
+let running = false;
+
+export async function drainSyncQueue(): Promise<void> {
+  if (running) return;
+
+  const { user, accessToken } = useAuthStore.getState();
+  if (!user || user.guest || !accessToken) return;
+
+  const store = useSyncStore.getState();
+  if (!store.queue.length) return;
+
+  running = true;
+  store.setStatus('syncing');
+
+  try {
+    if (!(await pingBackend())) {
+      useSyncStore.getState().setStatus('offline');
+      return;
+    }
+
+    while (useSyncStore.getState().queue.length) {
+      const batch = useSyncStore.getState().queue.slice(0, BATCH_SIZE);
+      const succeeded: string[] = [];
+      const failed: string[] = [];
+      let lastMessage = '';
+
+      // Sequential rather than parallel: ordering matters more than speed here,
+      // and the queue is small by construction.
+      for (const op of batch) {
+        try {
+          if (op.action === 'delete') {
+            const id = (op.payload as { id: string }).id;
+            await api.delete(`${ENDPOINTS[op.entity]}/${id}`);
+          } else {
+            await api.post(ENDPOINTS[op.entity], op.payload);
+          }
+          succeeded.push(op.id);
+        } catch (error) {
+          lastMessage = error instanceof Error ? error.message : 'Sync failed';
+          failed.push(op.id);
+        }
+      }
+
+      if (succeeded.length) useSyncStore.getState().resolve(succeeded);
+      if (failed.length) {
+        useSyncStore.getState().fail(failed, lastMessage);
+        useSyncStore.getState().setStatus('error', lastMessage);
+        return;
+      }
+    }
+
+    useSyncStore.getState().markSynced();
+  } catch (error) {
+    useSyncStore.getState().setStatus('error', error instanceof Error ? error.message : 'Sync failed');
+  } finally {
+    running = false;
+  }
+}
+
+type Snapshot = {
+  library: Record<string, unknown>[];
+  journal: Record<string, unknown>[];
+  quotes: Record<string, unknown>[];
+  notes: Record<string, unknown>[];
+  sessions: Record<string, unknown>[];
+  goals?: Record<string, unknown>;
+};
+
+/**
+ * Pulls the account's copy down and merges it in.
+ *
+ * This is what makes a new phone feel like the old one: sign in, and the
+ * shelves and the journal are simply there. Merging is additive and
+ * last-writer-wins, so it can never delete something the phone has that the
+ * server has not seen yet — that work is still sitting in the outbound queue.
+ */
+export async function pullFromServer(): Promise<Snapshot | null> {
+  const { user } = useAuthStore.getState();
+  if (!user || user.guest) return null;
+
+  try {
+    const snapshot = await api.get<Snapshot>('/sync/snapshot');
+    mergeSnapshot(snapshot);
+    return snapshot;
+  } catch {
+    return null;
+  }
+}
+
+const newer = <T extends { updatedAt?: number; createdAt?: number }>(a?: T, b?: T) => {
+  const stamp = (record?: T) => record?.updatedAt ?? record?.createdAt ?? 0;
+  return stamp(a) >= stamp(b) ? a : b;
+};
+
+function mergeInto<T extends { id: string; updatedAt?: number; createdAt?: number }>(
+  current: Record<string, T>,
+  incoming: Record<string, unknown>[],
+): Record<string, T> {
+  const next = { ...current };
+  incoming.forEach((raw) => {
+    const record = raw as T & { _deleted?: boolean };
+    if (!record.id) return;
+    if (record._deleted) {
+      delete next[record.id];
+      return;
+    }
+    delete record._deleted;
+    delete (record as { _syncedAt?: number })._syncedAt;
+    next[record.id] = (newer(next[record.id], record) ?? record) as T;
+  });
+  return next;
+}
+
+function mergeSnapshot(snapshot: Snapshot) {
+  useLibraryStore.setState((s) => ({ entries: mergeInto(s.entries, snapshot.library ?? []) }));
+  useJournalStore.setState((s) => ({ entries: mergeInto(s.entries, snapshot.journal ?? []) }));
+  useQuotesStore.setState((s) => ({ quotes: mergeInto(s.quotes, snapshot.quotes ?? []) }));
+  useNotesStore.setState((s) => ({ notes: mergeInto(s.notes, snapshot.notes ?? []) }));
+  useSessionsStore.setState((s) => ({ sessions: mergeInto(s.sessions, snapshot.sessions ?? []) }));
+
+  if (snapshot.goals) {
+    const { booksPerYear, booksPerMonth, pagesPerDay, minutesPerDay, year } = snapshot.goals as Record<
+      string,
+      number
+    >;
+    useGoalsStore.getState().setGoals({ booksPerYear, booksPerMonth, pagesPerDay, minutesPerDay, year });
+  }
+}
+
+/**
+ * The full round trip, run once after signing in: push whatever was written
+ * while signed out, then pull down anything this device has never seen.
+ */
+export async function syncOnSignIn(): Promise<void> {
+  await drainSyncQueue();
+  await pullFromServer();
+}

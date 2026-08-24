@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Marginalia",
+    "slug": "marginalia-book-journal",
+    "scheme": "marginalia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5EBDC"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.marginalia.bookjournal",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Marginalia uses the camera to scan book barcodes so you can add books to your shelves in a second.",
+        "NSPhotoLibraryUsageDescription": "Marginalia lets you attach photos to your journal entries.",
+        "NSMicrophoneUsageDescription": "Marginalia lets you record little voice notes about what you are reading.",
+        "UIBackgroundModes": []
+      }
+    },
+    "android": {
+      "package": "com.marginalia.bookjournal",
+      "adaptiveIcon": {
+        "backgroundColor": "#F5EBDC",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA", "RECORD_AUDIO", "VIBRATE", "READ_MEDIA_IMAGES"]
+    },
+    "web": { "favicon": "./assets/favicon.png", "bundler": "metro" },
+    "plugins": [
+      "expo-image",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-audio",
+      "expo-localization",
+      ["expo-camera", { "cameraPermission": "Marginalia uses the camera to scan book barcodes." }],
+      ["expo-image-picker", { "photosPermission": "Marginalia lets you attach photos to your journal entries." }],
+      ["expo-notifications", { "color": "#8C5A3C" }]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:4000"
+    }
+  }
+}
