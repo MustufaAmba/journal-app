@@ -96,6 +96,25 @@ async function refreshTokens(): Promise<boolean> {
   return refreshing;
 }
 
+/**
+ * A failure that is the connection's fault rather than the server's — the
+ * request never got an answer. Worth distinguishing, because it is the one
+ * case where waiting longer actually helps.
+ */
+export function isConnectionFailure(error: unknown): boolean {
+  if (error instanceof ApiError) return false;
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === 'AbortError' ||
+    error.name === 'TimeoutError' ||
+    error.name === 'TypeError' || // browsers throw this for a failed fetch
+    /network request failed|failed to fetch|network error/i.test(error.message)
+  );
+}
+
+/** Long enough for a suspended free-tier instance to boot and answer. */
+const COLD_START_MS = 60_000;
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   try {
     return await rawRequest<T>(path, options);
@@ -104,6 +123,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     if (error instanceof ApiError && error.status === 401 && !options.anonymous) {
       if (await refreshTokens()) return rawRequest<T>(path, options);
     }
+
+    // Free hosting suspends an idle instance and takes the better part of a
+    // minute to wake it. The default timeout is tuned for a warm server, so a
+    // first sign-in after a quiet spell would fail for no good reason. Give it
+    // one patient second attempt before reporting failure.
+    if (isConnectionFailure(error) && (options.timeoutMs ?? 0) < COLD_START_MS) {
+      return rawRequest<T>(path, { ...options, timeoutMs: COLD_START_MS });
+    }
+
     throw error;
   }
 }

@@ -39,6 +39,16 @@ EXPO_PUBLIC_API_URL=http://localhost:4000      # backup/sync server
 EXPO_PUBLIC_GOOGLE_BOOKS_KEY=…                 # raises the Google Books rate limit
 ```
 
+For local development (`npx expo start`) put these in `mobile/.env.local`,
+which is gitignored:
+
+```bash
+EXPO_PUBLIC_API_URL=https://your-service.onrender.com
+```
+
+Without it the app falls back to `http://localhost:4000`, and signing up in a
+browser fails with a connection error because nothing is listening there.
+
 `EXPO_PUBLIC_*` values are **inlined into the bundle at build time**, not read
 at runtime. For a release build that means setting them in `eas.json` before
 building — an APK built without `EXPO_PUBLIC_API_URL` points at `localhost` and
