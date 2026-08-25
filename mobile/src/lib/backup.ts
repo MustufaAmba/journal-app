@@ -91,10 +91,10 @@ const stamp = () => format(new Date(), 'yyyy-MM-dd');
 /** The machine-readable copy: everything, re-importable. */
 export async function exportBackup(): Promise<string> {
   return writeAndShare(
-    `marginalia-backup-${stamp()}.json`,
+    `bookie-backup-${stamp()}.json`,
     JSON.stringify(buildBackup(), null, 2),
     'application/json',
-    'Save your Marginalia backup',
+    'Save your Bookie backup',
   );
 }
 

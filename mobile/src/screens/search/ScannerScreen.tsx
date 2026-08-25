@@ -121,7 +121,7 @@ export function ScannerScreen() {
         <EmptyState
           illustration="window"
           title="The camera is asleep"
-          message="Marginalia needs permission to use the camera so it can read the barcode on the back of a book. Nothing is recorded or sent anywhere."
+          message="Bookie needs permission to use the camera so it can read the barcode on the back of a book. Nothing is recorded or sent anywhere."
           actionLabel="Allow the camera"
           onAction={requestPermission}
           secondaryLabel="Search by title instead"

@@ -135,7 +135,7 @@ export function JournalEntryScreen() {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        void notify('Photos are locked', 'Marginalia needs permission to open your photo library.');
+        void notify('Photos are locked', 'Bookie needs permission to open your photo library.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -160,7 +160,7 @@ export function JournalEntryScreen() {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        void notify('Camera is locked', 'Marginalia needs permission to use the camera.');
+        void notify('Camera is locked', 'Bookie needs permission to use the camera.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({ quality: 0.75 });

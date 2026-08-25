@@ -58,7 +58,7 @@ export function DataAndBackupScreen() {
     run('import', async () => {
       const backup = await readBackupFromDisk();
       if (!backup) {
-        void notify('Not a Marginalia backup', 'Pick a .json file exported from this app.');
+        void notify('Not a Bookie backup', 'Pick a .json file exported from this app.');
         return;
       }
       const restored = restoreBackup(backup, mode);

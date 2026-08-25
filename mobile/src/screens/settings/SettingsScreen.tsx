@@ -60,7 +60,7 @@ export function SettingsScreen() {
         patch({ reminder: { ...settings.reminder, enabled: false } });
         void notify(
           'Notifications are off',
-          'Marginalia needs notification permission for reminders. You can turn it on in your phone’s settings.',
+          'Bookie needs notification permission for reminders. You can turn it on in your phone’s settings.',
         );
       }
     } else {
@@ -277,7 +277,7 @@ export function SettingsScreen() {
         />
 
         <Text variant="caption" tone="inkFaint" align="center" style={{ marginTop: theme.space.xl }}>
-          Marginalia · made by hand, for one reader
+          Bookie · made by hand, for one reader
         </Text>
       </ScrollView>
 

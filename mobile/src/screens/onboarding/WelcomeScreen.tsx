@@ -74,7 +74,7 @@ export function WelcomeScreen() {
             {forWhom ? `A journal for ${forWhom}` : 'A journal for one reader'}
           </Text>
           <Text variant="hero" tone="ink" align="center" style={{ marginTop: theme.space.sm }}>
-            Marginalia
+            Bookie
           </Text>
           <Text variant="body" tone="inkFaint" align="center" style={{ marginTop: theme.space.sm, maxWidth: 300 }}>
             {forWhom

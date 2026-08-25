@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Marginalia",
+    "name": "Bookie",
     "slug": "marginalia-book-journal",
     "scheme": "marginalia",
     "version": "1.0.0",
@@ -20,16 +20,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.marginalia.bookjournal",
       "infoPlist": {
-        "NSCameraUsageDescription": "Marginalia uses the camera to scan book barcodes so you can add books to your shelves in a second.",
-        "NSPhotoLibraryUsageDescription": "Marginalia lets you attach photos to your journal entries.",
-        "NSMicrophoneUsageDescription": "Marginalia lets you record little voice notes about what you are reading.",
+        "NSCameraUsageDescription": "Bookie uses the camera to scan book barcodes so you can add books to your shelves in a second.",
+        "NSPhotoLibraryUsageDescription": "Bookie lets you attach photos to your journal entries.",
+        "NSMicrophoneUsageDescription": "Bookie lets you record little voice notes about what you are reading.",
         "UIBackgroundModes": []
       }
     },
     "android": {
       "package": "com.marginalia.bookjournal",
       "adaptiveIcon": {
-        "backgroundColor": "#F5EBDC",
+        "backgroundColor": "#AD937C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -62,13 +62,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Marginalia uses the camera to scan book barcodes."
+          "cameraPermission": "Bookie uses the camera to scan book barcodes."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Marginalia lets you attach photos to your journal entries."
+          "photosPermission": "Bookie lets you attach photos to your journal entries."
         }
       ],
       [
