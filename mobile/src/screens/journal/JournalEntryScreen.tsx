@@ -25,6 +25,7 @@ import { Divider, Ornament } from '@/components/Divider';
 import { BookCover } from '@/components/BookCover';
 import { Sheet } from '@/components/Sheet';
 import { VoiceNoteRecorder, VoiceNoteRow } from '@/components/VoiceNotes';
+import { InlineSpinner } from '@/components/InlineSpinner';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { useJournalStore, isEntryEmpty } from '@/store/useJournalStore';
@@ -76,11 +77,21 @@ export function JournalEntryScreen() {
   const entry = entries[entryId];
   const book = useBooksStore((s) => (entry?.bookId ? s.byId[entry.bookId] : undefined));
 
+  // Photos and voice notes are never typed into, so they live in the store and
+  // render straight from it. Keeping them in the local draft meant a newly
+  // attached file did not appear until the screen was remounted — and worse,
+  // the autosave below would write the stale copy back over it.
+  const photos = entry?.photos ?? [];
+  const voiceNotes = entry?.voiceNotes ?? [];
+
   const [draft, setDraft] = useState(() => entry);
   const [showPrompts, setShowPrompts] = useState(false);
   const [emojiSheet, setEmojiSheet] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
+  // Picking, copying and decoding a photo takes a visible moment on a mid-range
+  // phone; without this the screen looks like it ignored the tap.
+  const [attaching, setAttaching] = useState<'photo' | 'camera' | null>(null);
 
   // Keep the local draft in step if the record is replaced from elsewhere.
   useEffect(() => {
@@ -96,7 +107,12 @@ export function JournalEntryScreen() {
     draft,
     (value) => {
       if (!value) return;
-      const { id, createdAt, updatedAt, draft: isDraft, ...rest } = value;
+      // `photos` and `voiceNotes` are deliberately dropped: the store owns them,
+      // and writing this draft's copy back would undo an attachment added
+      // moments ago.
+      const {
+        id, createdAt, updatedAt, draft: isDraft, photos: _p, voiceNotes: _v, ...rest
+      } = value;
       save(entryId, rest);
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1400);
@@ -113,32 +129,48 @@ export function JournalEntryScreen() {
   );
 
   const pickPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Photos are locked', 'Marginalia needs permission to open your photo library.');
-      return;
+    if (attaching) return;
+    setAttaching('photo');
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Photos are locked', 'Marginalia needs permission to open your photo library.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.75,
+        allowsMultipleSelection: true,
+        selectionLimit: 6,
+      });
+      if (result.canceled) return;
+      result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
+      haptics.settle();
+    } catch {
+      Alert.alert('That photo would not open', 'Try picking it again.');
+    } finally {
+      setAttaching(null);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.75,
-      allowsMultipleSelection: true,
-      selectionLimit: 6,
-    });
-    if (result.canceled) return;
-    result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
-    haptics.settle();
   };
 
   const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Camera is locked', 'Marginalia needs permission to use the camera.');
-      return;
+    if (attaching) return;
+    setAttaching('camera');
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Camera is locked', 'Marginalia needs permission to use the camera.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.75 });
+      if (result.canceled) return;
+      result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
+      haptics.settle();
+    } catch {
+      Alert.alert('The camera would not open', 'Try again in a moment.');
+    } finally {
+      setAttaching(null);
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.75 });
-    if (result.canceled) return;
-    result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
-    haptics.settle();
   };
 
   const addTag = () => {
@@ -287,18 +319,26 @@ export function JournalEntryScreen() {
           {/* Photos */}
           <View style={{ marginTop: theme.space.xl }}>
             <View style={styles.writeHeader}>
-              <Text variant="label" caps tone="inkFaint">
-                Photographs
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text variant="label" caps tone="inkFaint">
+                  Photographs
+                </Text>
+                {attaching ? (
+                  <InlineSpinner
+                    label={attaching === 'camera' ? 'opening camera' : 'adding'}
+                    style={{ marginLeft: theme.space.sm }}
+                  />
+                ) : null}
+              </View>
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                <SmallButton icon="camera-outline" label="Camera" onPress={takePhoto} />
-                <SmallButton icon="images-outline" label="Library" onPress={pickPhoto} />
+                <SmallButton icon="camera-outline" label="Camera" onPress={takePhoto} busy={attaching === 'camera'} />
+                <SmallButton icon="images-outline" label="Library" onPress={pickPhoto} busy={attaching === 'photo'} />
               </View>
             </View>
 
-            {draft.photos.length ? (
+            {photos.length || attaching ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                {draft.photos.map((uri) => (
+                {photos.map((uri) => (
                   <Animated.View key={uri} entering={FadeIn.duration(250)} exiting={FadeOut.duration(180)}>
                     <View style={[styles.polaroid, { backgroundColor: theme.colors.paperRaised, borderRadius: 4 }, theme.elevation(2)]}>
                       <Image source={{ uri }} style={styles.photo} contentFit="cover" cachePolicy="disk" />
@@ -313,6 +353,19 @@ export function JournalEntryScreen() {
                     </View>
                   </Animated.View>
                 ))}
+
+                {/* A slot appears the moment you tap, so the row grows immediately. */}
+                {attaching ? (
+                  <View
+                    style={[
+                      styles.polaroid,
+                      styles.pendingPhoto,
+                      { backgroundColor: theme.colors.paperSunken, borderColor: theme.colors.rule },
+                    ]}
+                  >
+                    <InlineSpinner />
+                  </View>
+                ) : null}
               </ScrollView>
             ) : (
               <Text variant="small" tone="inkFaint">
@@ -329,9 +382,9 @@ export function JournalEntryScreen() {
             <Card sunken>
               <VoiceNoteRecorder onRecorded={(note) => addVoiceNote(entryId, note)} />
 
-              {draft.voiceNotes.length ? (
+              {voiceNotes.length ? (
                 <View style={{ marginTop: theme.space.lg, gap: theme.space.sm }}>
-                  {draft.voiceNotes.map((note) => (
+                  {voiceNotes.map((note) => (
                     <VoiceNoteRow
                       key={note.uri}
                       uri={note.uri}
@@ -428,7 +481,7 @@ export function JournalEntryScreen() {
           />
 
           <Text variant="caption" tone="inkFaint" align="center" style={{ marginTop: theme.space.xl }}>
-            {isEntryEmpty(draft)
+            {isEntryEmpty({ ...draft, photos, voiceNotes })
               ? 'This page is blank — it will not be kept unless you write something.'
               : 'Everything here saves itself as you go.'}
           </Text>
@@ -534,22 +587,28 @@ function SmallButton({
   icon,
   label,
   onPress,
+  busy,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  busy?: boolean;
 }) {
   const theme = useTheme();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={busy ? undefined : onPress}
       haptic="select"
       scaleTo={0.93}
       accessibilityRole="button"
       accessibilityLabel={label}
       style={[
         styles.smallButton,
-        { backgroundColor: withAlpha(theme.colors.accent, 0.1), borderRadius: theme.radius.pill },
+        {
+          backgroundColor: withAlpha(theme.colors.accent, 0.1),
+          borderRadius: theme.radius.pill,
+          opacity: busy ? 0.5 : 1,
+        },
       ]}
     >
       <Ionicons name={icon} size={13} color={theme.colors.accent} />
@@ -570,6 +629,15 @@ const styles = StyleSheet.create({
   emojiButton: { flexDirection: 'row', alignItems: 'center' },
   ruled: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', paddingLeft: 12 },
   polaroid: { padding: 6, paddingBottom: 14 },
+  pendingPhoto: {
+    width: 124,
+    height: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderRadius: 4,
+  },
   photo: { width: 112, height: 112, borderRadius: 2 },
   removePhoto: {
     position: 'absolute',

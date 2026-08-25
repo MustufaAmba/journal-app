@@ -1,4 +1,10 @@
-/** Time-of-day greeting, with a second line that changes the mood of the screen. */
+/**
+ * Time-of-day greeting, with a second line that changes the mood of the screen.
+ *
+ * The name matters more than it looks: most readers use this in guest mode,
+ * where there is no account to take a name from. The dedication's "For …" is
+ * the right fallback — it is the person the journal was made for.
+ */
 export function greeting(name?: string, at: Date = new Date()): { hello: string; sub: string } {
   const hour = at.getHours();
   const who = name?.trim() ? `, ${name.trim().split(' ')[0]}` : '';

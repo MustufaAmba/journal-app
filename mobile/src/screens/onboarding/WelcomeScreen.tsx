@@ -34,6 +34,8 @@ export function WelcomeScreen() {
   const navigation = useNavigation<Nav>();
   const { width } = useWindowDimensions();
   const patch = useSettingsStore((s) => s.patch);
+  const dedication = useSettingsStore((s) => s.dedication);
+  const forWhom = dedication?.to?.trim();
 
   const breathe = useSharedValue(0);
   const glow = useSharedValue(0);
@@ -69,13 +71,15 @@ export function WelcomeScreen() {
       <View style={styles.body}>
         <Animated.View entering={theme.calm ? undefined : FadeIn.duration(900)} style={styles.header}>
           <Text variant="label" caps tone="accent" align="center">
-            A journal for one reader
+            {forWhom ? `A journal for ${forWhom}` : 'A journal for one reader'}
           </Text>
           <Text variant="hero" tone="ink" align="center" style={{ marginTop: theme.space.sm }}>
             Marginalia
           </Text>
           <Text variant="body" tone="inkFaint" align="center" style={{ marginTop: theme.space.sm, maxWidth: 300 }}>
-            Everything you read, and everything reading made you think — kept somewhere warm.
+            {forWhom
+              ? `Everything ${forWhom} reads, and everything reading makes them think — kept somewhere warm.`
+              : 'Everything you read, and everything reading made you think — kept somewhere warm.'}
           </Text>
         </Animated.View>
 

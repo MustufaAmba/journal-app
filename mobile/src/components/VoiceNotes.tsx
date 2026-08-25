@@ -10,6 +10,7 @@ import {
   RecordingPresets,
 } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
+import { File } from 'expo-file-system';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -23,6 +24,7 @@ import { Text } from './Text';
 import { Pressable } from './Pressable';
 import { withAlpha } from '@/lib/color';
 import { haptics } from '@/lib/haptics';
+import { InlineSpinner } from './InlineSpinner';
 
 /**
  * Little spoken notes.
@@ -45,6 +47,9 @@ export function VoiceNoteRecorder({
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const state = useAudioRecorderState(recorder, 250);
   const [denied, setDenied] = useState(false);
+  // Stopping flushes the file to disk, which is not instant on a mid-range
+  // phone — without this the tap looks like it did nothing.
+  const [saving, setSaving] = useState(false);
 
   const pulse = useSharedValue(0);
 
@@ -84,12 +89,19 @@ export function VoiceNoteRecorder({
 
   const stop = useCallback(async () => {
     const durationMs = state.durationMillis;
-    await recorder.stop();
-    // The uri only becomes available once the file has been written out.
-    const uri = recorder.uri;
-    await setAudioModeAsync({ allowsRecording: false });
-    haptics.success();
-    if (uri) onRecorded({ uri, durationMs });
+    setSaving(true);
+    try {
+      await recorder.stop();
+      // The uri only becomes available once the file has been written out.
+      const uri = recorder.uri;
+      await setAudioModeAsync({ allowsRecording: false });
+      haptics.success();
+      if (uri) onRecorded({ uri, durationMs });
+    } catch {
+      haptics.error();
+    } finally {
+      setSaving(false);
+    }
   }, [recorder, state.durationMillis, onRecorded]);
 
   return (
@@ -107,7 +119,7 @@ export function VoiceNoteRecorder({
             />
           ) : null}
           <Pressable
-            onPress={state.isRecording ? stop : start}
+            onPress={saving ? undefined : state.isRecording ? stop : start}
             haptic="none"
             scaleTo={0.9}
             accessibilityRole="button"
@@ -117,28 +129,39 @@ export function VoiceNoteRecorder({
               {
                 backgroundColor: state.isRecording ? theme.colors.danger : theme.colors.accent,
                 borderRadius: 26,
+                opacity: saving ? 0.6 : 1,
               },
               theme.elevation(1),
             ]}
           >
-            <Ionicons
-              name={state.isRecording ? 'stop' : 'mic'}
-              size={22}
-              color={theme.colors.accentInk}
-            />
+            {saving ? (
+              <InlineSpinner size={18} color={theme.colors.accentInk} />
+            ) : (
+              <Ionicons
+                name={state.isRecording ? 'stop' : 'mic'}
+                size={22}
+                color={theme.colors.accentInk}
+              />
+            )}
           </Pressable>
         </View>
 
         <View style={{ marginLeft: theme.space.lg, flex: 1 }}>
           <Text variant="bodyStrong" tone="ink">
-            {state.isRecording ? formatDuration(state.durationMillis) : 'Say something'}
+            {saving
+              ? 'Keeping it…'
+              : state.isRecording
+                ? formatDuration(state.durationMillis)
+                : 'Say something'}
           </Text>
           <Text variant="caption" tone="inkFaint">
             {denied
               ? 'Microphone access was declined — you can change that in Settings.'
-              : state.isRecording
-                ? 'Tap the square when you are done.'
-                : 'A short spoken note, kept with this entry.'}
+              : saving
+                ? 'Just a moment.'
+                : state.isRecording
+                  ? 'Tap the square when you are done.'
+                  : 'A short spoken note, kept with this entry.'}
           </Text>
         </View>
       </View>
@@ -147,6 +170,36 @@ export function VoiceNoteRecorder({
 }
 
 export function VoiceNoteRow({
+  uri,
+  durationMs,
+  onDelete,
+}: {
+  uri: string;
+  durationMs: number;
+  onDelete: () => void;
+}) {
+  const theme = useTheme();
+
+  // Recordings live in the app's storage, and that can be cleared by Android,
+  // by a reinstall, or by restoring a backup on a different phone. Building a
+  // player around a file that is gone takes the whole journal entry down with
+  // it, so check first and show a small honest message instead.
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    try {
+      setMissing(!new File(uri).exists);
+    } catch {
+      setMissing(true);
+    }
+  }, [uri]);
+
+  if (missing) return <MissingVoiceNote onDelete={onDelete} />;
+
+  return <VoiceNotePlayer uri={uri} durationMs={durationMs} onDelete={onDelete} />;
+}
+
+/** Split out so the audio player hook only ever runs on a file that exists. */
+function VoiceNotePlayer({
   uri,
   durationMs,
   onDelete,
@@ -203,6 +256,30 @@ export function VoiceNoteRow({
       </Text>
 
       <Pressable onPress={onDelete} scaleTo={0.85} accessibilityRole="button" accessibilityLabel="Delete voice note">
+        <Ionicons name="close-circle" size={18} color={withAlpha(theme.colors.inkFaint, 0.8)} />
+      </Pressable>
+    </View>
+  );
+}
+
+function MissingVoiceNote({ onDelete }: { onDelete: () => void }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.noteRow,
+        {
+          backgroundColor: withAlpha(theme.colors.inkFaint, 0.08),
+          borderRadius: theme.radius.md,
+          borderColor: withAlpha(theme.colors.rule, 1),
+        },
+      ]}
+    >
+      <Ionicons name="cloud-offline-outline" size={17} color={theme.colors.inkFaint} />
+      <Text variant="caption" tone="inkFaint" style={{ flex: 1, marginHorizontal: theme.space.md }}>
+        This recording is no longer on the phone.
+      </Text>
+      <Pressable onPress={onDelete} scaleTo={0.85} accessibilityLabel="Remove missing voice note">
         <Ionicons name="close-circle" size={18} color={withAlpha(theme.colors.inkFaint, 0.8)} />
       </Pressable>
     </View>

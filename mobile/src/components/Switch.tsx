@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   interpolateColor,
@@ -35,16 +35,21 @@ export function Switch({
   accessibilityLabel?: string;
 }) {
   const theme = useTheme();
+
+  // Both endpoints are resolved on the JS thread. `withAlpha` is an ordinary
+  // function, and calling one of those from inside a worklet crashes the UI
+  // thread on native — the worklet below may only touch plain values.
+  const track = useMemo(
+    () => [withAlpha(theme.colors.inkFaint, 0.28), theme.colors.accent] as const,
+    [theme.colors.inkFaint, theme.colors.accent],
+  );
+
   const progress = useDerivedValue(() =>
     theme.calm ? (value ? 1 : 0) : withSpring(value ? 1 : 0, { damping: 17, stiffness: 260, mass: 0.6 }),
   );
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      [withAlpha(theme.colors.inkFaint, 0.28), theme.colors.accent],
-    ),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [track[0], track[1]]),
   }));
 
   const thumbStyle = useAnimatedStyle(() => ({

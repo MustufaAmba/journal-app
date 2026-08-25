@@ -64,7 +64,10 @@ export function HomeScreen() {
   const anniversaries = useAnniversaries();
   const memories = useThisDayInReading();
 
-  const hello = useMemo(() => greeting(user?.name), [user?.name]);
+  const hello = useMemo(
+    () => greeting(user?.name?.trim() || dedication?.to?.trim()),
+    [user?.name, dedication?.to],
+  );
   const wisdom = useMemo(() => wisdomForDay(), []);
   const DailyIllustration = ILLUSTRATIONS[illustrationForDay()];
 

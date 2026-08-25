@@ -55,7 +55,7 @@ export function YouScreen() {
       <View style={[styles.topBar, { paddingHorizontal: theme.space.lg }]}>
         <View style={{ flex: 1 }}>
           <Text variant="title" tone="ink">
-            {user?.name?.split(' ')[0] ?? 'You'}
+            {(user?.name?.trim() || dedication?.to?.trim() || 'You').split(' ')[0]}
           </Text>
           <Text variant="caption" tone="inkFaint">
             {user?.guest ? 'Reading as a guest — everything stays on this phone' : (user?.email ?? 'Signed in')}
