@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { Chip } from '@/components/Chip';
 import { Divider } from '@/components/Divider';
 import { BookCover } from '@/components/BookCover';
 import { Rating } from '@/components/Rating';
+import { useDialog } from '@/components/DialogProvider';
 import { useLibraryStore } from '@/store/useLibraryStore';
 import { SHELVES, SHELF_ORDER } from '@/data/shelves';
 import { haptics } from '@/lib/haptics';
@@ -38,26 +39,21 @@ export function BookActionsSheet({
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
   const setRating = useLibraryStore((s) => s.setRating);
   const remove = useLibraryStore((s) => s.remove);
+  const { confirm } = useDialog();
 
   if (!book || !entry) return null;
 
-  const confirmRemove = () => {
-    Alert.alert(
-      'Take this off the shelf?',
-      `“${book.title}” will be removed from your library. Journal entries and quotes about it are kept.`,
-      [
-        { text: 'Keep it', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            remove(entry.id);
-            haptics.warn();
-            onClose();
-          },
-        },
-      ],
-    );
+  const confirmRemove = async () => {
+    const gone = await confirm({
+      title: 'Take this off the shelf?',
+      message: `“${book.title}” will be removed from your library. Journal entries and quotes about it are kept.`,
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!gone) return;
+    remove(entry.id);
+    onClose();
   };
 
   const go = (action: () => void) => {
@@ -141,7 +137,7 @@ export function BookActionsSheet({
 
         <Divider style={{ marginVertical: theme.space.sm }} />
 
-        <Action icon="trash-outline" label="Remove from library" danger onPress={confirmRemove} />
+        <Action icon="trash-outline" label="Remove from library" danger onPress={() => void confirmRemove()} />
       </View>
     </Sheet>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { Divider } from '@/components/Divider';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { Sheet } from '@/components/Sheet';
 import { Switch } from '@/components/Switch';
+import { useDialog } from '@/components/DialogProvider';
 import { THEMES } from '@/theme/palettes';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -47,6 +48,7 @@ export function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const sessions = useSessionsStore((s) => s.sessions);
+  const { confirm, notify } = useDialog();
 
   const [timeSheet, setTimeSheet] = useState(false);
 
@@ -56,7 +58,7 @@ export function SettingsScreen() {
       const ok = await scheduleReadingReminder(settings.reminder.hour, settings.reminder.minute);
       if (!ok) {
         patch({ reminder: { ...settings.reminder, enabled: false } });
-        Alert.alert(
+        void notify(
           'Notifications are off',
           'Marginalia needs notification permission for reminders. You can turn it on in your phone’s settings.',
         );
@@ -73,17 +75,17 @@ export function SettingsScreen() {
     setTimeSheet(false);
   };
 
-  const confirmSignOut = () => {
-    Alert.alert(
-      user?.guest ? 'Leave guest mode?' : 'Sign out?',
-      user?.guest
+  const confirmSignOut = async () => {
+    const leaving = await confirm({
+      title: user?.guest ? 'Leave guest mode?' : 'Sign out?',
+      message: user?.guest
         ? 'Your books and journal stay on this phone. You can come back to them by choosing guest mode again.'
         : 'Anything not yet backed up will stay on this phone until you sign back in.',
-      [
-        { text: 'Stay', style: 'cancel' },
-        { text: user?.guest ? 'Leave' : 'Sign out', style: 'destructive', onPress: signOut },
-      ],
-    );
+      confirmLabel: user?.guest ? 'Leave' : 'Sign out',
+      cancelLabel: 'Stay',
+      destructive: true,
+    });
+    if (leaving) signOut();
   };
 
   const formatTime = (hour: number, minute: number) => {
@@ -271,7 +273,7 @@ export function SettingsScreen() {
           variant="danger"
           full
           style={{ marginTop: theme.space.xxl }}
-          onPress={confirmSignOut}
+          onPress={() => void confirmSignOut()}
         />
 
         <Text variant="caption" tone="inkFaint" align="center" style={{ marginTop: theme.space.xl }}>

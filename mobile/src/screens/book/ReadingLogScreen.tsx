@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Heatmap } from '@/components/Heatmap';
 import { LogProgressSheet } from '@/components/LogProgressSheet';
 import { BookCover } from '@/components/BookCover';
+import { useDialog } from '@/components/DialogProvider';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { useBooksStore } from '@/store/useBooksStore';
@@ -39,6 +40,7 @@ export function ReadingLogScreen() {
   const removeSession = useSessionsStore((s) => s.remove);
 
   const [logging, setLogging] = useState(false);
+  const { confirm } = useDialog();
 
   const entry = useMemo(
     () => Object.values(entries).find((e) => e.bookId === route.params.bookId),
@@ -70,18 +72,17 @@ export function ReadingLogScreen() {
     [bookSessions],
   );
 
-  const confirmDelete = (id: string) => {
-    Alert.alert('Remove this session?', 'The pages will come off your totals.', [
-      { text: 'Keep it', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          removeSession(id);
-          haptics.warn();
-        },
-      },
-    ]);
+  const confirmDelete = async (id: string) => {
+    const gone = await confirm({
+      title: 'Remove this session?',
+      message: 'The pages will come off your totals.',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!gone) return;
+    removeSession(id);
+    haptics.warn();
   };
 
   if (!book) {
@@ -144,7 +145,7 @@ export function ReadingLogScreen() {
                       +{pagesIn(session)}
                     </Text>
                     <Pressable
-                      onPress={() => confirmDelete(session.id)}
+                      onPress={() => void confirmDelete(session.id)}
                       scaleTo={0.85}
                       accessibilityLabel="Remove session"
                     >

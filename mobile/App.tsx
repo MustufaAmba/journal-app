@@ -17,6 +17,7 @@ import {
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { CelebrationProvider } from '@/components/CelebrationProvider';
+import { DialogProvider } from '@/components/DialogProvider';
 import { hydrateStores } from '@/store';
 import { drainSyncQueue, syncOnSignIn } from '@/api/sync';
 import { useSettingsStore, useAuthStore } from '@/store';
@@ -108,11 +109,13 @@ export default function App() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <CelebrationProvider>
-              <View style={styles.root}>
-                <RootNavigator />
-              </View>
-            </CelebrationProvider>
+            <DialogProvider>
+              <CelebrationProvider>
+                <View style={styles.root}>
+                  <RootNavigator />
+                </View>
+              </CelebrationProvider>
+            </DialogProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

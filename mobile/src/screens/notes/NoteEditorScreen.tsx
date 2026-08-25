@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { IconButton } from '@/components/Header';
 import { MarkdownText } from '@/components/MarkdownText';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { noteColors } from '@/components/StickyNote';
+import { useDialog } from '@/components/DialogProvider';
 import { PaperTexture } from '@/components/PaperTexture';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -63,6 +64,7 @@ export function NoteEditorScreen() {
   const [tags, setTags] = useState<string[]>(note?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [mode, setMode] = useState<'write' | 'read'>('write');
+  const { confirm } = useDialog();
 
   const draft = { title, body, colorIndex, pinned, tags };
 
@@ -84,19 +86,18 @@ export function NoteEditorScreen() {
     haptics.select();
   }, [tagInput, tags]);
 
-  const confirmDelete = () => {
-    Alert.alert('Throw this note away?', 'It will not be recoverable.', [
-      { text: 'Keep it', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          removeNote(noteId);
-          haptics.warn();
-          navigation.goBack();
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    const gone = await confirm({
+      title: 'Throw this note away?',
+      message: 'It will not be recoverable.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!gone) return;
+    removeNote(noteId);
+    haptics.warn();
+    navigation.goBack();
   };
 
   const insert = (snippet: string) => {
@@ -123,7 +124,7 @@ export function NoteEditorScreen() {
             haptics.select();
           }}
         />
-        <IconButton name="trash-outline" label="Delete note" onPress={confirmDelete} style={{ marginLeft: theme.space.sm }} />
+        <IconButton name="trash-outline" label="Delete note" onPress={() => void confirmDelete()} style={{ marginLeft: theme.space.sm }} />
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>

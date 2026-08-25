@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/Screen';
@@ -9,6 +9,7 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Pressable } from '@/components/Pressable';
 import { Divider } from '@/components/Divider';
+import { useDialog } from '@/components/DialogProvider';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import {
@@ -36,6 +37,7 @@ export function DataAndBackupScreen() {
 
   const sync = useSyncStore();
   const user = useAuthStore((s) => s.user);
+  const { confirm, notify } = useDialog();
 
   const counts = summarise(buildBackup());
 
@@ -45,7 +47,7 @@ export function DataAndBackupScreen() {
     try {
       await action();
     } catch (error) {
-      Alert.alert('That did not work', error instanceof Error ? error.message : 'Something went wrong.');
+      void notify('That did not work', error instanceof Error ? error.message : 'Something went wrong.');
       haptics.error();
     } finally {
       setBusy(null);
@@ -56,7 +58,7 @@ export function DataAndBackupScreen() {
     run('import', async () => {
       const backup = await readBackupFromDisk();
       if (!backup) {
-        Alert.alert('Not a Marginalia backup', 'Pick a .json file exported from this app.');
+        void notify('Not a Marginalia backup', 'Pick a .json file exported from this app.');
         return;
       }
       const restored = restoreBackup(backup, mode);
@@ -66,15 +68,16 @@ export function DataAndBackupScreen() {
       );
     });
 
-  const confirmReplace = () => {
-    Alert.alert(
-      'Replace everything?',
-      'Your current shelves, journal, quotes and notes will be cleared and replaced with the contents of the backup file. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Replace', style: 'destructive', onPress: () => void doImport('replace') },
-      ],
-    );
+  const confirmReplace = async () => {
+    const replacing = await confirm({
+      title: 'Replace everything?',
+      message:
+        'Your current shelves, journal, quotes and notes will be cleared and replaced with the contents of the backup file. This cannot be undone.',
+      confirmLabel: 'Replace',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (replacing) void doImport('replace');
   };
 
   return (
@@ -139,7 +142,7 @@ export function DataAndBackupScreen() {
             label="Import and replace"
             detail="Wipes what is here first — for setting up a new phone"
             danger
-            onPress={confirmReplace}
+            onPress={() => void confirmReplace()}
           />
         </Card>
 

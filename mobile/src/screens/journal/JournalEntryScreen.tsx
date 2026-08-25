@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -26,6 +25,7 @@ import { BookCover } from '@/components/BookCover';
 import { Sheet } from '@/components/Sheet';
 import { VoiceNoteRecorder, VoiceNoteRow } from '@/components/VoiceNotes';
 import { InlineSpinner } from '@/components/InlineSpinner';
+import { useDialog } from '@/components/DialogProvider';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { useJournalStore, isEntryEmpty } from '@/store/useJournalStore';
@@ -88,6 +88,7 @@ export function JournalEntryScreen() {
   const [showPrompts, setShowPrompts] = useState(false);
   const [emojiSheet, setEmojiSheet] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const { confirm, notify } = useDialog();
   const [savedFlash, setSavedFlash] = useState(false);
   // Picking, copying and decoding a photo takes a visible moment on a mid-range
   // phone; without this the screen looks like it ignored the tap.
@@ -134,7 +135,7 @@ export function JournalEntryScreen() {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Photos are locked', 'Marginalia needs permission to open your photo library.');
+        void notify('Photos are locked', 'Marginalia needs permission to open your photo library.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -147,7 +148,7 @@ export function JournalEntryScreen() {
       result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
       haptics.settle();
     } catch {
-      Alert.alert('That photo would not open', 'Try picking it again.');
+      void notify('That photo would not open', 'Try picking it again.');
     } finally {
       setAttaching(null);
     }
@@ -159,7 +160,7 @@ export function JournalEntryScreen() {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Camera is locked', 'Marginalia needs permission to use the camera.');
+        void notify('Camera is locked', 'Marginalia needs permission to use the camera.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({ quality: 0.75 });
@@ -167,7 +168,7 @@ export function JournalEntryScreen() {
       result.assets.forEach((asset) => addPhoto(entryId, asset.uri));
       haptics.settle();
     } catch {
-      Alert.alert('The camera would not open', 'Try again in a moment.');
+      void notify('The camera would not open', 'Try again in a moment.');
     } finally {
       setAttaching(null);
     }
@@ -184,19 +185,17 @@ export function JournalEntryScreen() {
     haptics.select();
   };
 
-  const confirmDelete = () => {
-    Alert.alert('Tear out this page?', 'This entry will be gone for good.', [
-      { text: 'Keep it', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          removeEntry(entryId);
-          haptics.warn();
-          navigation.goBack();
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    const gone = await confirm({
+      title: 'Tear out this page?',
+      message: 'This entry will be gone for good.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!gone) return;
+    removeEntry(entryId);
+    navigation.goBack();
   };
 
   const promptsFilled = useMemo(
@@ -223,7 +222,7 @@ export function JournalEntryScreen() {
         <View style={{ flex: 1, alignItems: 'center' }}>
           <SavedIndicator visible={savedFlash} />
         </View>
-        <IconButton name="trash-outline" label="Delete entry" onPress={confirmDelete} />
+        <IconButton name="trash-outline" label="Delete entry" onPress={() => void confirmDelete()} />
       </View>
 
       <KeyboardAvoidingView

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -18,6 +18,7 @@ import { Divider } from '@/components/Divider';
 import { QuoteCard, quotePaper } from '@/components/QuoteCard';
 import { Sheet } from '@/components/Sheet';
 import { BookCover } from '@/components/BookCover';
+import { useDialog } from '@/components/DialogProvider';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { useQuotesStore } from '@/store/useQuotesStore';
@@ -61,6 +62,7 @@ export function QuoteEditorScreen() {
   const [sharing, setSharing] = useState(false);
 
   const shareRef = useRef<View>(null);
+  const { confirm, notify } = useDialog();
 
   const book = bookId ? books[bookId] : undefined;
 
@@ -95,7 +97,7 @@ export function QuoteEditorScreen() {
   const save = () => {
     const trimmed = text.trim();
     if (!trimmed) {
-      Alert.alert('Nothing to keep', 'Type the quote first.');
+      void notify('Nothing to keep', 'Type the quote first.');
       return;
     }
 
@@ -119,25 +121,23 @@ export function QuoteEditorScreen() {
     navigation.goBack();
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!existing) return;
-    Alert.alert('Let this one go?', 'The quote will be removed from your collection.', [
-      { text: 'Keep it', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          removeQuote(existing.id);
-          haptics.warn();
-          navigation.goBack();
-        },
-      },
-    ]);
+    const gone = await confirm({
+      title: 'Let this one go?',
+      message: 'The quote will be removed from your collection.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!gone) return;
+    removeQuote(existing.id);
+    navigation.goBack();
   };
 
   const shareAsImage = async () => {
     if (!text.trim()) {
-      Alert.alert('Nothing to share', 'Type the quote first.');
+      void notify('Nothing to share', 'Type the quote first.');
       return;
     }
     setSharing(true);
@@ -146,10 +146,10 @@ export function QuoteEditorScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share this quote' });
       } else {
-        Alert.alert('Sharing unavailable', 'This device cannot share files.');
+        void notify('Sharing unavailable', 'This device cannot share files.');
       }
     } catch {
-      Alert.alert('Could not make the card', 'Something went wrong rendering the image.');
+      void notify('Could not make the card', 'Something went wrong rendering the image.');
     } finally {
       setSharing(false);
     }
@@ -165,7 +165,7 @@ export function QuoteEditorScreen() {
           </Text>
         </View>
         {existing ? (
-          <IconButton name="trash-outline" label="Delete quote" onPress={confirmDelete} />
+          <IconButton name="trash-outline" label="Delete quote" onPress={() => void confirmDelete()} />
         ) : (
           <View style={{ width: 40 }} />
         )}
