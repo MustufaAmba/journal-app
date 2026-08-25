@@ -14,10 +14,9 @@ import { Ornament } from '@/components/Divider';
 import { TeaAndBook } from '@/components/illustrations';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useAuthStore } from '@/store/useAuthStore';
-import { signInWithEmail, signInWithGoogle, authErrorMessage } from '@/api/auth';
+import { signInWithEmail, authErrorMessage } from '@/api/auth';
 import { haptics } from '@/lib/haptics';
 import { AuthLayout } from './AuthLayout';
-import { GoogleButton } from './GoogleButton';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,7 +36,6 @@ export function SignInScreen() {
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState, getValues } = useForm<Values>({
@@ -60,18 +58,6 @@ export function SignInScreen() {
     }
   };
 
-  const onGoogle = async () => {
-    setGoogleLoading(true);
-    setFormError(null);
-    try {
-      await signInWithGoogle(remember);
-      haptics.success();
-    } catch (error) {
-      setFormError(authErrorMessage(error));
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   return (
     <AuthLayout
@@ -196,10 +182,6 @@ export function SignInScreen() {
       />
 
       <Ornament label="or" />
-
-      <GoogleButton onPress={onGoogle} loading={googleLoading} />
-
-      <View style={{ height: theme.space.md }} />
 
       <Button
         label="Just let me in — no account"

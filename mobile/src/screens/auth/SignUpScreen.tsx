@@ -7,13 +7,11 @@ import { z } from 'zod';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
-import { Ornament } from '@/components/Divider';
 import { OpenBook } from '@/components/illustrations';
 import { useTheme } from '@/theme/ThemeProvider';
-import { signUpWithEmail, signInWithGoogle, authErrorMessage } from '@/api/auth';
+import { signUpWithEmail, authErrorMessage } from '@/api/auth';
 import { haptics } from '@/lib/haptics';
 import { AuthLayout } from './AuthLayout';
-import { GoogleButton } from './GoogleButton';
 
 const schema = z
   .object({
@@ -33,7 +31,6 @@ export function SignUpScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
   const [submitting, setSubmitting] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { control, handleSubmit } = useForm<Values>({
@@ -56,16 +53,6 @@ export function SignUpScreen() {
     }
   };
 
-  const onGoogle = async () => {
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle(true);
-    } catch (error) {
-      setFormError(authErrorMessage(error));
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   return (
     <AuthLayout
@@ -173,10 +160,6 @@ export function SignUpScreen() {
         onPress={handleSubmit(onSubmit)}
         style={{ marginTop: theme.space.lg }}
       />
-
-      <Ornament label="or" />
-
-      <GoogleButton onPress={onGoogle} loading={googleLoading} />
     </AuthLayout>
   );
 }

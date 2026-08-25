@@ -5,7 +5,6 @@ import * as bcrypt from 'bcryptjs';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { UsersService } from '../users/users.service';
 import type { UserDocument } from '../users/user.schema';
-import type { GoogleProfile } from './strategies/google.strategy';
 
 /** Constant-time comparison, so a stored hash cannot be guessed byte by byte. */
 function timingSafeEqualHex(a: string, b: string): boolean {
@@ -97,31 +96,6 @@ export class AuthService {
 
     if (!(await bcrypt.compare(password, user.passwordHash))) throw invalid;
 
-    return { user: this.toPublic(user), ...(await this.issueTokens(user)) };
-  }
-
-  /** Signs in, or quietly creates the account, from a verified Google profile. */
-  async loginWithGoogle(profile: GoogleProfile) {
-    let user = await this.users.findByGoogleId(profile.googleId);
-
-    if (!user) {
-      // Link Google to an existing email account rather than making a duplicate.
-      const byEmail = await this.users.findByEmail(profile.email);
-      user = byEmail
-        ? await this.users.update(byEmail.id as string, {
-            googleId: profile.googleId,
-            avatarUrl: byEmail.avatarUrl ?? profile.avatarUrl,
-            name: byEmail.name ?? profile.name,
-          })
-        : await this.users.create({
-            email: profile.email,
-            googleId: profile.googleId,
-            name: profile.name,
-            avatarUrl: profile.avatarUrl,
-          });
-    }
-
-    if (!user) throw new UnauthorizedException('Could not complete Google sign-in.');
     return { user: this.toPublic(user), ...(await this.issueTokens(user)) };
   }
 

@@ -45,15 +45,6 @@ thing you are asked for.
 | `CORS_ORIGINS` | *(empty)* | Comma-separated. Empty means "the app only" — a phone sends no `Origin` header. Only needed if a website calls this API. |
 | `GOOGLE_BOOKS_API_KEY` | *(empty)* | Only raises the rate limit on the metadata fallback. Open Library needs no key. |
 
-**Google sign-in** needs all three, or none. Unset, the feature simply does not
-exist and email accounts and guest mode are unaffected.
-
-| Variable | Notes |
-|---|---|
-| `GOOGLE_CLIENT_ID` | From the Google Cloud console |
-| `GOOGLE_CLIENT_SECRET` | |
-| `GOOGLE_CALLBACK_URL` | **Must be your real URL in production** — `https://your-service.onrender.com/auth/google/callback`. The default is localhost and will not work once deployed. |
-
 </details>
 
 ## API
@@ -69,7 +60,6 @@ Everything requires `Authorization: Bearer <accessToken>` unless marked public.
 | `POST` | `/auth/refresh` | public · `{refreshToken}` → rotates both tokens |
 | `POST` | `/auth/forgot-password` | public · always reports success |
 | `POST` | `/auth/reset-password` | public · `{email, token, password}` |
-| `GET` | `/auth/google` | public · `?redirect=<app deep link>` |
 | `GET` | `/auth/me` · `PATCH /auth/me` | profile |
 | `POST` | `/auth/logout` | revokes the refresh token |
 
@@ -127,8 +117,6 @@ rule with a real database.
   database cannot mint sessions.
 - Every route is behind the JWT guard by default; public routes opt out with
   `@Public()` rather than the other way round.
-- The Google callback only ever redirects to the app's own scheme or an
-  allow-listed origin — an open redirect here would hand out tokens.
 - Login, registration and password reset are rate-limited.
 
 ## Tests

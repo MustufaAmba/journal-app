@@ -49,9 +49,6 @@ async function bootstrap() {
 
   logger.log(`Marginalia is listening on http://localhost:${port}`);
   logger.log(`Database: ${config.get<string>('mongo.uri')}`);
-  if (!config.get<string>('google.clientId')) {
-    logger.log('Google sign-in is off (no GOOGLE_CLIENT_ID) — email and guest mode still work.');
-  }
 }
 
 /**

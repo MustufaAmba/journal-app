@@ -18,10 +18,6 @@ export class UsersService {
     return query.exec();
   }
 
-  findByGoogleId(googleId: string) {
-    return this.model.findOne({ googleId }).exec();
-  }
-
   create(input: Partial<User>) {
     return this.model.create({ ...input, email: input.email?.toLowerCase().trim() });
   }

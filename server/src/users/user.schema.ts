@@ -15,9 +15,6 @@ export class User {
   @Prop({ select: false })
   passwordHash?: string;
 
-  @Prop({ index: true, sparse: true })
-  googleId?: string;
-
   @Prop()
   avatarUrl?: string;
 

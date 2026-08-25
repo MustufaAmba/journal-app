@@ -64,15 +64,6 @@ export const configuration = () => ({
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '60d',
   },
 
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    callbackUrl: process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:4000/auth/google/callback',
-    /** Google sign-in simply does not exist unless it has been configured. */
-    get enabled() {
-      return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-    },
-  },
 
   books: {
     googleApiKey: process.env.GOOGLE_BOOKS_API_KEY ?? '',

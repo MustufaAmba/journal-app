@@ -1,10 +1,6 @@
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import { api, ApiError } from './client';
 import { useAuthStore } from '@/store/useAuthStore';
 import type { UserProfile } from '@/types';
-
-WebBrowser.maybeCompleteAuthSession();
 
 type AuthResponse = { user: UserProfile; accessToken: string; refreshToken?: string };
 
@@ -23,34 +19,6 @@ export async function signUpWithEmail(name: string, email: string, password: str
 export async function requestPasswordReset(email: string) {
   // The endpoint always reports success — it must not reveal who has an account.
   await api.post<{ ok: true }>('/auth/forgot-password', { email }, { anonymous: true });
-}
-
-/**
- * Google sign-in.
- *
- * The client never sees a Google secret: it opens the backend's /auth/google
- * endpoint in a browser tab, the backend does the OAuth dance, and hands back
- * our own tokens on the redirect.
- */
-export async function signInWithGoogle(remember: boolean) {
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'marginalia', path: 'auth' });
-  const authUrl = `${(await import('./client')).API_URL}/auth/google?redirect=${encodeURIComponent(redirectUri)}`;
-
-  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-  if (result.type !== 'success' || !result.url) {
-    throw new Error('Google sign-in was cancelled.');
-  }
-
-  const params = new URL(result.url).searchParams;
-  const accessToken = params.get('accessToken');
-  const refreshToken = params.get('refreshToken') ?? undefined;
-  const userParam = params.get('user');
-
-  if (!accessToken || !userParam) throw new Error('Google sign-in did not complete.');
-
-  const user = JSON.parse(decodeURIComponent(userParam)) as UserProfile;
-  useAuthStore.getState().signIn({ user, accessToken, refreshToken, remember });
-  return user;
 }
 
 export async function fetchProfile() {

@@ -56,14 +56,4 @@ services:
 #                           only client is an APK. Set it only if a website
 #                           ever needs to call this API.
 #   GOOGLE_BOOKS_API_KEY    only raises the rate limit on the metadata fallback
-#
-# For Google sign-in you need all three, and the callback must point at your
-# Render URL — the default is localhost and will not work in production:
-#
-#   GOOGLE_CLIENT_ID
-#   GOOGLE_CLIENT_SECRET
-#   GOOGLE_CALLBACK_URL     https://YOUR-SERVICE.onrender.com/auth/google/callback
-#
-# Leave all three unset and Google sign-in simply does not exist; email
-# accounts and guest mode are unaffected.
 # ---------------------------------------------------------------------------
