@@ -82,12 +82,29 @@ export async function getBookDetail(id: string, signal?: AbortSignal): Promise<B
   const store = useBooksStore.getState();
   const cached = store.get(id);
 
-  const fresh = cached && !isThin(cached) && Date.now() - (cached.fetchedAt ?? 0) < STALE_AFTER;
-  if (fresh) return cached;
-
-  // A manually-added book has nothing to look up.
+  // A hand-added book is not in any database. The reader's own copy — synced
+  // from their account, or written here in the first place — is the truth.
   if (cached?.source === 'manual') return cached;
 
+  // 1. Ask the server. It holds the canonical cache, it has already filled
+  //    Open Library's gaps from Google, and one request beats two or three.
+  //    Not patient: we have a copy on the device to fall back to, and waiting
+  //    a minute to find out we are offline would be worse than using it.
+  const fromServer = await fetchFromServer(id, signal);
+  if (fromServer) {
+    const merged = mergeBook(cached, fromServer);
+    store.cache(merged);
+    return merged;
+  }
+
+  // 2. The server is unreachable or has never heard of it. The copy already
+  //    on the device is still perfectly good — this is the whole point of
+  //    keeping one.
+  if (cached && !isThin(cached) && Date.now() - (cached.fetchedAt ?? 0) < STALE_AFTER) {
+    return cached;
+  }
+
+  // 3. Nothing usable anywhere: go and find it ourselves.
   try {
     const workKey = cached?.workKey ?? (id.startsWith('OL') ? `/works/${id}` : undefined);
     const detail = workKey
@@ -146,6 +163,27 @@ export function createManualBook(input: {
   return book;
 }
 
+
+/* ------------------------------ the server ------------------------------ */
+
+/**
+ * The account's own book cache. Returns null for anything the server cannot
+ * answer — offline, cold, or a book it has genuinely never seen — which is
+ * the caller's signal to fall back to the device.
+ */
+async function fetchFromServer(id: string, signal?: AbortSignal): Promise<Book | null> {
+  try {
+    return fromServerCache(
+      await api.get<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`, {
+        signal,
+        timeoutMs: 8000,
+        patient: false,
+      }),
+    );
+  } catch {
+    return null;
+  }
+}
 
 /* --------------------------- restoring a shelf --------------------------- */
 
@@ -218,7 +256,7 @@ export async function restoreBooks(
       try {
         const book = fromServerCache(await api.get<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`));
         if (book) {
-          useBooksStore.getState().put(book);
+          useBooksStore.getState().cache(book);
           restored += 1;
         } else {
           unavailable.push(id);

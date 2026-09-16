@@ -1,6 +1,7 @@
 import { Controller, Delete, Get, Query } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { LibraryEntryService } from '../library/library.service';
+import { UserBookService } from '../user-books/user-books.service';
 import { JournalEntryService } from '../journal/journal.service';
 import { QuoteService } from '../quotes/quotes.service';
 import { NoteService } from '../notes/notes.service';
@@ -17,6 +18,7 @@ import { GoalsService } from '../goals/goals.service';
 export class SyncController {
   constructor(
     private readonly library: LibraryEntryService,
+    private readonly userBooks: UserBookService,
     private readonly journal: JournalEntryService,
     private readonly quotes: QuoteService,
     private readonly notes: NoteService,
@@ -28,8 +30,9 @@ export class SyncController {
   async snapshot(@CurrentUser('userId') userId: string, @Query('since') since?: string) {
     const from = Number.parseInt(since ?? '0', 10) || 0;
 
-    const [library, journal, quotes, notes, sessions, goals] = await Promise.all([
+    const [library, books, journal, quotes, notes, sessions, goals] = await Promise.all([
       this.library.list(userId, from),
+      this.userBooks.list(userId, from),
       this.journal.list(userId, from),
       this.quotes.list(userId, from),
       this.notes.list(userId, from),
@@ -37,19 +40,20 @@ export class SyncController {
       this.goals.get(userId),
     ]);
 
-    return { library, journal, quotes, notes, sessions, goals, syncedAt: Date.now() };
+    return { library, books, journal, quotes, notes, sessions, goals, syncedAt: Date.now() };
   }
 
   @Get('status')
   async status(@CurrentUser('userId') userId: string) {
-    const [library, journal, quotes, notes, sessions] = await Promise.all([
+    const [library, books, journal, quotes, notes, sessions] = await Promise.all([
       this.library.count(userId),
+      this.userBooks.count(userId),
       this.journal.count(userId),
       this.quotes.count(userId),
       this.notes.count(userId),
       this.sessions.count(userId),
     ]);
-    return { library, journal, quotes, notes, sessions };
+    return { library, books, journal, quotes, notes, sessions };
   }
 
   /**
@@ -60,6 +64,7 @@ export class SyncController {
   async clear(@CurrentUser('userId') userId: string) {
     await Promise.all([
       this.library.clear(userId),
+      this.userBooks.clear(userId),
       this.journal.clear(userId),
       this.quotes.clear(userId),
       this.notes.clear(userId),

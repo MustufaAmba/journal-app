@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { BooksModule } from './books/books.module';
 import { LibraryEntryModule } from './library/library.module';
+import { UserBookModule } from './user-books/user-books.module';
 import { JournalEntryModule } from './journal/journal.module';
 import { QuoteModule } from './quotes/quotes.module';
 import { NoteModule } from './notes/notes.module';
@@ -56,6 +57,7 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     BooksModule,
     LibraryEntryModule,
+    UserBookModule,
     JournalEntryModule,
     QuoteModule,
     NoteModule,

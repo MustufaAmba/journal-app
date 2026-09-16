@@ -22,6 +22,7 @@ import type { SyncOp } from '@/types';
 
 const ENDPOINTS: Record<SyncOp['entity'], string> = {
   library: '/library',
+  book: '/my-books',
   journal: '/journal',
   quote: '/quotes',
   note: '/notes',
@@ -93,6 +94,7 @@ export async function drainSyncQueue(): Promise<void> {
 
 type Snapshot = {
   library: Record<string, unknown>[];
+  books?: Record<string, unknown>[];
   journal: Record<string, unknown>[];
   quotes: Record<string, unknown>[];
   notes: Record<string, unknown>[];
@@ -149,6 +151,9 @@ function mergeInto<T extends { id: string; updatedAt?: number; createdAt?: numbe
 
 function mergeSnapshot(snapshot: Snapshot) {
   useLibraryStore.setState((s) => ({ entries: mergeInto(s.entries, snapshot.library ?? []) }));
+  // setState rather than the store's own put(), so restoring a book does not
+  // enqueue it straight back to the server it just came from.
+  useBooksStore.setState((s) => ({ byId: mergeInto(s.byId, snapshot.books ?? []) }));
   useJournalStore.setState((s) => ({ entries: mergeInto(s.entries, snapshot.journal ?? []) }));
   useQuotesStore.setState((s) => ({ quotes: mergeInto(s.quotes, snapshot.quotes ?? []) }));
   useNotesStore.setState((s) => ({ notes: mergeInto(s.notes, snapshot.notes ?? []) }));

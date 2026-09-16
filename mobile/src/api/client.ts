@@ -28,6 +28,13 @@ type RequestOptions = {
   anonymous?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /**
+   * Whether to give a sleeping free-tier instance a minute to wake up.
+   * On by default. Turn it off for reads that have a good local fallback:
+   * waiting sixty seconds to discover we are offline is worse than using
+   * the copy already on the device.
+   */
+  patient?: boolean;
 };
 
 let refreshing: Promise<boolean> | null = null;
@@ -128,7 +135,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     // minute to wake it. The default timeout is tuned for a warm server, so a
     // first sign-in after a quiet spell would fail for no good reason. Give it
     // one patient second attempt before reporting failure.
-    if (isConnectionFailure(error) && (options.timeoutMs ?? 0) < COLD_START_MS) {
+    if (
+      options.patient !== false &&
+      isConnectionFailure(error) &&
+      (options.timeoutMs ?? 0) < COLD_START_MS
+    ) {
       return rawRequest<T>(path, { ...options, timeoutMs: COLD_START_MS });
     }
 

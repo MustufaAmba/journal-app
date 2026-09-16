@@ -33,6 +33,8 @@ export type Book = {
   seriesPosition?: number;
   /** ms epoch of the last successful metadata fetch */
   fetchedAt?: number;
+  /** ms epoch of the reader's last edit; only set on books they own */
+  updatedAt?: number;
   source?: 'openlibrary' | 'google' | 'manual';
 };
 
@@ -187,7 +189,7 @@ export type UserProfile = {
 
 export type SyncOp = {
   id: string;
-  entity: 'library' | 'journal' | 'quote' | 'note' | 'session' | 'goals' | 'profile';
+  entity: 'library' | 'book' | 'journal' | 'quote' | 'note' | 'session' | 'goals' | 'profile';
   action: 'upsert' | 'delete';
   payload: unknown;
   createdAt: number;
