@@ -62,6 +62,7 @@ export function LibraryScreen() {
   const books = useBooksStore((s) => s.byId);
   const entries = useLibraryStore((s) => s.entries);
   const reorder = useLibraryStore((s) => s.reorder);
+  const reorderAcross = useLibraryStore((s) => s.reorderAcross);
 
   const [shelf, setShelf] = useState<ShelfFilter>(route.params?.shelf ?? 'all');
   const [view, setView] = useState<ViewMode>(defaultView);
@@ -85,11 +86,13 @@ export function LibraryScreen() {
   }, [entries]);
 
   const items = useMemo(() => {
+    // Sorted by the same `order` the shelves use, so the combined view can be
+    // rearranged by hand like any other.
     const source =
       shelf === 'all'
         ? Object.values(entries)
             .filter((e) => e.shelf !== 'archive')
-            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .sort((a, b) => a.order - b.order || b.addedAt - a.addedAt)
         : shelfEntries(entries, shelf);
 
     const list = source
@@ -134,10 +137,10 @@ export function LibraryScreen() {
 
   const handleReorder = useCallback(
     (orderedKeys: string[]) => {
-      if (shelf === 'all') return;
-      reorder(shelf, orderedKeys);
+      if (shelf === 'all') reorderAcross(orderedKeys);
+      else reorder(shelf, orderedKeys);
     },
-    [reorder, shelf],
+    [reorder, reorderAcross, shelf],
   );
 
   const gutter = theme.space.lg;
@@ -145,8 +148,7 @@ export function LibraryScreen() {
   const gridWidth = Math.floor((width - gutter * 2 - 12 * (gridColumns - 1)) / gridColumns);
 
   const meta = shelf === 'all' ? null : SHELVES[shelf];
-  // Manual order belongs to a shelf, so there is nothing to rearrange in "All".
-  const canArrange = shelf !== 'all' && sort === 'manual' && items.length > 1;
+  const canArrange = sort === 'manual' && items.length > 1;
 
   return (
     <Screen edges={['top']}>
@@ -215,7 +217,7 @@ export function LibraryScreen() {
           style={{ flex: 1, maxWidth: 210 }}
         />
 
-        {canArrange && (view === 'grid' || view === 'bookshelf') ? (
+        {canArrange && view !== 'list' ? (
           <Pressable
             onPress={() => {
               haptics.select();
@@ -278,6 +280,8 @@ export function LibraryScreen() {
           onLongPress={onLongPress}
           gutter={gutter}
           width={width}
+          arranging={arranging}
+          onReorder={handleReorder}
         />
       ) : view === 'grid' && arranging ? (
         <ScrollView style={styles.fill} contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
@@ -548,12 +552,16 @@ function SpineView({
   onLongPress,
   gutter,
   width,
+  arranging,
+  onReorder,
 }: {
   items: { book: Book; entry: LibraryEntry }[];
   onPress: (book: Book, entry: LibraryEntry) => void;
   onLongPress: (book: Book, entry: LibraryEntry) => void;
   gutter: number;
   width: number;
+  arranging: boolean;
+  onReorder: (keys: string[]) => void;
 }) {
   const theme = useTheme();
   const available = width - gutter * 2;
@@ -609,6 +617,32 @@ function SpineView({
     if (row.length) out.push(row);
     return out;
   }, [items, available]);
+
+  if (arranging) {
+    // Variable thicknesses and flat piles cannot be dragged sensibly, so
+    // arranging lays every book out upright at one width — the same trade the
+    // bookshelf view makes when it drops its ornaments to rearrange.
+    const cellWidth = 54;
+    const columns = Math.max(2, Math.floor(available / (cellWidth + 8)));
+
+    return (
+      <ScrollView style={styles.fill} contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
+        <ArrangeHint />
+        <DraggableGrid
+          items={items}
+          keyExtractor={(item) => item.entry.id}
+          numColumns={columns}
+          itemWidth={cellWidth}
+          itemHeight={spineHeight + 12}
+          gap={8}
+          onReorder={onReorder}
+          renderItem={(item) => (
+            <BookSpine book={{ ...item.book, pageCount: undefined }} height={spineHeight} />
+          )}
+        />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

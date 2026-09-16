@@ -23,6 +23,8 @@ type LibraryState = {
   /** put a finished book back on Currently Reading as a re-read */
   reread: (id: string) => void;
   reorder: (shelf: ShelfId, orderedEntryIds: string[]) => void;
+  /** Reorders across shelves, for the library's combined "All" view. */
+  reorderAcross: (orderedEntryIds: string[]) => void;
   remove: (id: string) => void;
   markCelebrated: (id: string, isoDate: string) => void;
 };
@@ -160,6 +162,23 @@ export const useLibraryStore = create<LibraryState>()(
           orderedEntryIds.forEach((id, index) => {
             const entry = entries[id];
             if (!entry || entry.shelf !== shelf) return;
+            entries[id] = { ...entry, order: index, updatedAt: now() };
+            enqueue('library', 'upsert', entries[id]);
+          });
+          return { entries };
+        }),
+
+      /**
+       * `order` is only ever read as an ascending number within a shelf, so
+       * numbering every book in one pass keeps each shelf's own sequence
+       * intact while giving the combined view a arrangement of its own.
+       */
+      reorderAcross: (orderedEntryIds) =>
+        set((s) => {
+          const entries = { ...s.entries };
+          orderedEntryIds.forEach((id, index) => {
+            const entry = entries[id];
+            if (!entry) return;
             entries[id] = { ...entry, order: index, updatedAt: now() };
             enqueue('library', 'upsert', entries[id]);
           });
