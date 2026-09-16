@@ -81,6 +81,15 @@ export default function App() {
   // anything written while signed out, then pull down the rest.
   useEffect(() => {
     if (!storageReady) return;
+
+    // A remembered session is already rehydrated by the time this runs, so the
+    // subscription below — which only fires when the signed-in id *changes* —
+    // would never fire for it. Without this, someone who stays signed in never
+    // pulls again after their first sign-in, and anything the account gained
+    // elsewhere (or any local cache they have lost) never comes back.
+    const restored = useAuthStore.getState().user;
+    if (restored && !restored.guest) void syncOnSignIn();
+
     let previous = useAuthStore.getState().user?.id ?? null;
     return useAuthStore.subscribe((state) => {
       const current = state.user?.id ?? null;

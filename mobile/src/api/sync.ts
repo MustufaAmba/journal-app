@@ -7,6 +7,8 @@ import { useQuotesStore } from '@/store/useQuotesStore';
 import { useNotesStore } from '@/store/useNotesStore';
 import { useSessionsStore } from '@/store/useSessionsStore';
 import { useGoalsStore } from '@/store/useGoalsStore';
+import { useBooksStore } from '@/store/useBooksStore';
+import { restoreBooks } from './books';
 import type { SyncOp } from '@/types';
 
 /**
@@ -113,6 +115,8 @@ export async function pullFromServer(): Promise<Snapshot | null> {
   try {
     const snapshot = await api.get<Snapshot>('/sync/snapshot');
     mergeSnapshot(snapshot);
+    // Entries arrived; the books they point at may not be on this device yet.
+    void refillBookCache();
     return snapshot;
   } catch {
     return null;
@@ -157,6 +161,37 @@ function mergeSnapshot(snapshot: Snapshot) {
     >;
     useGoalsStore.getState().setGoals({ booksPerYear, booksPerMonth, pagesPerDay, minutesPerDay, year });
   }
+}
+
+/**
+ * Fetches any book a synced record refers to but this device has never seen.
+ *
+ * The catalogue was designed as a local cache, so it is the one thing that
+ * does not sync. That is fine until you sign in somewhere new: the entries
+ * come back and the books do not, and every shelf in the app silently drops
+ * the entries it cannot resolve. The server has been caching these books all
+ * along, so we just ask for them again.
+ *
+ * Deliberately not awaited by the caller — books land in the store one by one
+ * and the shelves fill in as they arrive.
+ */
+export async function refillBookCache(): Promise<void> {
+  const known = useBooksStore.getState().byId;
+  const wanted = new Set<string>();
+
+  Object.values(useLibraryStore.getState().entries).forEach((entry) => {
+    if (entry.bookId && !known[entry.bookId]) wanted.add(entry.bookId);
+  });
+  // A journal entry or a quote can outlive its shelf entry.
+  Object.values(useJournalStore.getState().entries).forEach((entry) => {
+    if (entry.bookId && !known[entry.bookId]) wanted.add(entry.bookId);
+  });
+  Object.values(useQuotesStore.getState().quotes).forEach((quote) => {
+    if (quote.bookId && !known[quote.bookId]) wanted.add(quote.bookId);
+  });
+
+  if (!wanted.size) return;
+  await restoreBooks([...wanted]);
 }
 
 /**

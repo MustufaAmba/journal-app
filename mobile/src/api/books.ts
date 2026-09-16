@@ -1,5 +1,6 @@
 import * as ol from './openLibrary';
 import * as google from './googleBooks';
+import { api } from './client';
 import { useBooksStore, mergeBook } from '@/store/useBooksStore';
 import type { Book } from '@/types';
 
@@ -143,4 +144,92 @@ export function createManualBook(input: {
   };
   useBooksStore.getState().put(book);
   return book;
+}
+
+
+/* --------------------------- restoring a shelf --------------------------- */
+
+/**
+ * The server's book cache speaks Mongo, the app speaks Book.
+ * Only the fields we actually model are copied across; anything else the
+ * document carries (_id, __v, timestamps) is dropped on the floor.
+ */
+function fromServerCache(doc: Record<string, unknown> | null): Book | null {
+  if (!doc) return null;
+  const id = (doc.bookId ?? doc.id) as string | undefined;
+  const title = doc.title as string | undefined;
+  if (!id || !title) return null;
+
+  const str = (key: string) => (typeof doc[key] === 'string' ? (doc[key] as string) : undefined);
+  const num = (key: string) => (typeof doc[key] === 'number' ? (doc[key] as number) : undefined);
+  const arr = (key: string) => (Array.isArray(doc[key]) ? (doc[key] as string[]) : undefined);
+
+  return {
+    id,
+    title,
+    authors: arr('authors') ?? [],
+    genres: arr('genres') ?? [],
+    authorKeys: arr('authorKeys'),
+    workKey: str('workKey'),
+    editionKey: str('editionKey'),
+    subtitle: str('subtitle'),
+    coverUrl: str('coverUrl'),
+    summary: str('summary'),
+    publisher: str('publisher'),
+    publishedDate: str('publishedDate'),
+    firstPublishYear: num('firstPublishYear'),
+    isbn10: str('isbn10'),
+    isbn13: str('isbn13'),
+    pageCount: num('pageCount'),
+    language: str('language'),
+    series: str('series'),
+    seriesPosition: num('seriesPosition'),
+    fetchedAt: num('fetchedAt'),
+    source: (str('source') as Book['source']) ?? 'openlibrary',
+  };
+}
+
+/**
+ * Puts the books back on a shelf that only has entries.
+ *
+ * Library entries sync; the book records they point at never did, because the
+ * catalogue was only ever a local cache. So signing in on a new phone restored
+ * a hundred entries pointing at books the device had never heard of, and the
+ * library — which drops any entry whose book is missing — looked empty.
+ *
+ * The server has been caching every book it ever looked up, so the shelf can
+ * simply be asked for again. Results are stored one at a time rather than in a
+ * batch at the end, so the shelves fill in as they arrive instead of staying
+ * blank until the last one lands.
+ */
+export async function restoreBooks(
+  ids: string[],
+  { concurrency = 5 }: { concurrency?: number } = {},
+): Promise<{ restored: number; unavailable: string[] }> {
+  // A hand-added book was never sent anywhere, so there is nothing to ask for.
+  const askable = ids.filter((id) => !id.startsWith('manual_'));
+  const unavailable = ids.filter((id) => id.startsWith('manual_'));
+  let restored = 0;
+
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < askable.length) {
+      const id = askable[cursor++];
+      try {
+        const book = fromServerCache(await api.get<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`));
+        if (book) {
+          useBooksStore.getState().put(book);
+          restored += 1;
+        } else {
+          unavailable.push(id);
+        }
+      } catch {
+        // One book the server cannot produce must not stop the other hundred.
+        unavailable.push(id);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, askable.length) }, worker));
+  return { restored, unavailable };
 }
