@@ -125,6 +125,8 @@ export function createManualBook(input: {
   publishedDate?: string;
   summary?: string;
   genres?: string[];
+  /** a photo the reader took of the actual cover, stored on the device */
+  coverUrl?: string;
 }): Book {
   const book: Book = {
     id: `manual_${Date.now().toString(36)}`,
@@ -135,6 +137,7 @@ export function createManualBook(input: {
     publisher: input.publisher,
     publishedDate: input.publishedDate,
     summary: input.summary,
+    coverUrl: input.coverUrl,
     source: 'manual',
     fetchedAt: Date.now(),
   };

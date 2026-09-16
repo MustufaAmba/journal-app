@@ -18,6 +18,7 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { CelebrationProvider } from '@/components/CelebrationProvider';
 import { DialogProvider } from '@/components/DialogProvider';
+import { LaunchScreen } from '@/components/LaunchScreen';
 import { hydrateStores } from '@/store';
 import { drainSyncQueue, syncOnSignIn } from '@/api/sync';
 import { useSettingsStore, useAuthStore } from '@/store';
@@ -102,7 +103,9 @@ export default function App() {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
-  if (!ready) return null;
+  // On a phone the native splash is still covering this; on the web it is all
+  // there is, so show the app's own mark rather than a blank page.
+  if (!ready) return <LaunchScreen />;
 
   return (
     <GestureHandlerRootView style={styles.root} onLayout={onLayout}>

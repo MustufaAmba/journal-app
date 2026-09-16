@@ -17,10 +17,25 @@ export type ThemeId =
   | 'secondhandBookshop'
   | 'lavenderDusk'
   | 'winterCabin'
-  | 'inkAndWine';
+  | 'inkAndWine'
+  | 'butterflyGarden';
 
 /** Ambient particle system that drifts behind the content. */
-export type Ambience = 'dust' | 'leaves' | 'steam' | 'rain' | 'fireflies' | 'snow' | 'blossom' | 'stars';
+export type Ambience =
+  | 'dust'
+  | 'leaves'
+  | 'steam'
+  | 'rain'
+  | 'fireflies'
+  | 'snow'
+  | 'blossom'
+  | 'stars'
+  | 'butterflies'
+  | 'moths'
+  | 'feathers'
+  | 'embers'
+  | 'bubbles'
+  | 'pages';
 
 export type Palette = {
   /** deepest background, behind everything */
@@ -228,7 +243,7 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
     name: 'Sepia Paper',
     blurb: 'A letter kept in a drawer for forty years.',
     isDark: false,
-    ambience: 'dust',
+    ambience: 'pages',
     grain: 0.085,
     wash: ['#E8D9BE', '#F4E9D4'],
     colors: {
@@ -288,7 +303,7 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
     name: 'Midnight',
     blurb: 'One more chapter. It is 2am. Worth it.',
     isDark: true,
-    ambience: 'stars',
+    ambience: 'moths',
     grain: 0.075,
     wash: ['#1A1720', '#221E2A'],
     colors: {
@@ -378,7 +393,7 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
     name: 'Secondhand Bookshop',
     blurb: 'Bottle-green shelves, a cat asleep, everything half price.',
     isDark: false,
-    ambience: 'dust',
+    ambience: 'feathers',
     grain: 0.065,
     wash: ['#DCE4DA', '#EDF1E9'],
     colors: {
@@ -468,7 +483,7 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
     name: 'Ink & Wine',
     blurb: 'A dark red bookshelf, a heavy novel, one glass poured.',
     isDark: true,
-    ambience: 'dust',
+    ambience: 'embers',
     grain: 0.07,
     wash: ['#2A1A1E', '#341F25'],
     colors: {
@@ -493,6 +508,36 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
       scrim: 'rgba(10,6,7,0.66)',
     },
   },
+  butterflyGarden: {
+    id: 'butterflyGarden',
+    name: 'Butterfly Garden',
+    blurb: 'Wisteria, warm shade, and something drifting past the page.',
+    isDark: false,
+    ambience: 'butterflies',
+    grain: 0.045,
+    wash: ['#EDE4F6', '#F7F2FC'],
+    colors: {
+      canvas: '#F3ECFA',
+      paper: '#FCF8FF',
+      paperSunken: '#EAE0F4',
+      paperRaised: '#FFFFFF',
+      wood: '#8E7BA6',
+      woodDark: '#655681',
+      ink: '#322A40',
+      inkSoft: '#5C5073',
+      inkFaint: '#9489A8',
+      accent: '#7D5BA6',
+      accentSoft: '#E5DAF3',
+      accentInk: '#FCF9FF',
+      gild: '#C8A45C',
+      rule: '#E2D7EE',
+      success: '#63855F',
+      warning: '#B98C3C',
+      danger: '#A8546B',
+      glow: '#D9C2F0',
+      scrim: 'rgba(50,42,64,0.40)',
+    },
+  },
 };
 
 /** Light rooms first, then the dark ones — the order they appear in Settings. */
@@ -502,6 +547,7 @@ export const THEME_ORDER: ThemeId[] = [
   'autumn',
   'coffeeShop',
   'pressedFlowers',
+  'butterflyGarden',
   'morningLight',
   'forestReading',
   'winterCabin',

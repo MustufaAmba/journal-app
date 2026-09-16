@@ -13,7 +13,7 @@ import { Chip } from '@/components/Chip';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { Header } from '@/components/Header';
-import { BookCover } from '@/components/BookCover';
+import { CoverPicker } from '@/components/CoverPicker';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { createManualBook } from '@/api/books';
@@ -48,6 +48,7 @@ export function AddBookManuallyScreen() {
 
   const addToLibrary = useLibraryStore((s) => s.add);
   const [shelf, setShelf] = useState<ShelfId>('currentlyReading');
+  const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined);
 
   const { control, handleSubmit, watch } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -73,6 +74,7 @@ export function AddBookManuallyScreen() {
       publisher: values.publisher || undefined,
       publishedDate: values.publishedDate || undefined,
       summary: values.summary || undefined,
+      coverUrl,
     });
     addToLibrary(book, shelf);
     haptics.success();
@@ -89,13 +91,7 @@ export function AddBookManuallyScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.preview}>
-            <BookCover
-              book={{ id: 'manual-preview', title: title || 'Untitled', authors: author ? [author] : [] }}
-              size="lg"
-            />
-            <Text variant="caption" tone="inkFaint" align="center" style={{ marginTop: theme.space.sm }}>
-              A cloth binding, since there is no cover to fetch.
-            </Text>
+            <CoverPicker title={title} author={author} coverUrl={coverUrl} onChange={setCoverUrl} />
           </View>
 
           <Card style={{ marginTop: theme.space.lg }}>

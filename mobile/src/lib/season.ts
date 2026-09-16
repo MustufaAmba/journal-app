@@ -19,7 +19,18 @@ export function seasonOf(date: Date = new Date()): Season {
  * that has a strong weather of its own. Rain belongs to Rainy Evening whatever
  * the month is, and Midnight's stars do not fall out of the sky in December.
  */
-const KEEPS_ITS_OWN_WEATHER: Ambience[] = ['rain', 'stars', 'steam', 'fireflies'];
+const KEEPS_ITS_OWN_WEATHER: Ambience[] = [
+  'rain',
+  'stars',
+  'steam',
+  'fireflies',
+  // These are the point of their theme — a Butterfly Garden without
+  // butterflies in December would just be a purple screen.
+  'butterflies',
+  'moths',
+  'embers',
+  'bubbles',
+];
 
 const SEASONAL: Record<Season, Ambience> = {
   spring: 'blossom',

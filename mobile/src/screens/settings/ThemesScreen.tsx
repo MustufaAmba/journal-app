@@ -27,6 +27,12 @@ const AMBIENCE_LABEL: Record<ThemeDefinition['ambience'], string> = {
   snow: 'snow, quietly',
   blossom: 'blossom on the breeze',
   stars: 'stars, and no one else awake',
+  butterflies: 'butterflies wandering past',
+  moths: 'moths drawn to the lamp',
+  feathers: 'a stray feather drifting down',
+  embers: 'embers rising from the grate',
+  bubbles: 'something fizzing, gently',
+  pages: 'loose pages turning in the draught',
 };
 
 /**

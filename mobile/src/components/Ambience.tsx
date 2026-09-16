@@ -76,6 +76,47 @@ const Petal = memo(({ color, size }: { color: string; size: number }) => (
   </Svg>
 ));
 
+/** Wings held open, seen from above — reads at 14px, which is all it needs to. */
+const Butterfly = memo(({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 12c-1-4-4-8-7-8-2 0-3 2-2 4 1 3 5 4 9 4zM12 12c1-4 4-8 7-8 2 0 3 2 2 4-1 3-5 4-9 4z"
+      fill={color}
+      opacity={0.92}
+    />
+    <Path
+      d="M12 12c-1 3-3 7-6 7-1.6 0-2.4-1.4-1.6-3 .9-1.8 4-3.4 7.6-4zM12 12c1 3 3 7 6 7 1.6 0 2.4-1.4 1.6-3-.9-1.8-4-3.4-7.6-4z"
+      fill={color}
+      opacity={0.68}
+    />
+    <Path d="M12 8.5c.5 0 .8.4.8 1v5c0 .6-.3 1-.8 1s-.8-.4-.8-1v-5c0-.6.3-1 .8-1z" fill={color} />
+  </Svg>
+));
+
+/** Blunter wings, no colour in them — a moth is a butterfly's night shift. */
+const Moth = memo(({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M12 12C9 7 5 5 3 7c-1.6 1.6-.4 5 3 6 2 .6 4.2.6 6 -1zM12 12c3-5 7-7 9-5 1.6 1.6.4 5-3 6-2 .6-4.2.6-6-1z" fill={color} opacity={0.75} />
+    <Path d="M12 11.5c.5 0 .9.5.9 1.2v3.6c0 .7-.4 1.2-.9 1.2s-.9-.5-.9-1.2v-3.6c0-.7.4-1.2.9-1.2z" fill={color} opacity={0.9} />
+    <Path d="M11.2 11.2 9.4 8.6M12.8 11.2l1.8-2.6" stroke={color} strokeWidth={0.8} strokeLinecap="round" />
+  </Svg>
+));
+
+const Feather = memo(({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M18 3c-6 1-11 6-12 12-.3 1.7 0 3 .6 4 1-.6 2-2 2.6-3.6C10.6 11 14 6.5 18 3z" fill={color} opacity={0.8} />
+    <Path d="M18 3C14 6.5 10.6 11 9.2 15.4" stroke={color} strokeWidth={0.7} opacity={0.9} />
+  </Svg>
+));
+
+/** A torn half-page, turning as it falls. */
+const PageScrap = memo(({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size * 1.25} viewBox="0 0 20 25">
+    <Path d="M2 1h13l3 3v20H2z" fill={color} opacity={0.85} />
+    <Path d="M5 7h9M5 11h9M5 15h6" stroke={color} strokeWidth={0.9} opacity={0.45} />
+  </Svg>
+));
+
 /* ------------------------------ particle ------------------------------ */
 
 function FallingParticle({
@@ -96,8 +137,11 @@ function FallingParticle({
   const progress = useSharedValue(0);
   const sway = useSharedValue(0);
 
-  const rising = kind === 'dust' || kind === 'steam' || kind === 'fireflies';
+  // Embers and bubbles climb; dust hangs and drifts upward in the light.
+  const rising = kind === 'dust' || kind === 'steam' || kind === 'fireflies' || kind === 'embers' || kind === 'bubbles';
   const fast = kind === 'rain';
+  // Things with wings wander much further sideways than things that merely fall.
+  const winged = kind === 'butterflies' || kind === 'moths';
   const duration = fast ? seed.duration * 0.16 : seed.duration;
 
   React.useEffect(() => {
@@ -123,24 +167,41 @@ function FallingParticle({
     const p = progress.value;
     const travel = height + 120;
     const y = rising ? travel - p * travel - 60 : p * travel - 60;
-    const x = seed.x * width + sway.value * (fast ? 4 : 26) * seed.drift;
+    const x = seed.x * width + sway.value * (fast ? 4 : winged ? 70 : 26) * seed.drift;
     // Fade in at the start of the journey and out at the end.
     const fade = Math.sin(Math.PI * p);
     return {
       transform: [
         { translateX: x },
         { translateY: y },
-        { rotate: `${sway.value * seed.spin * (kind === 'leaves' || kind === 'blossom' ? 90 : 12)}deg` },
+        {
+          rotate: `${sway.value * seed.spin * (
+            kind === 'leaves' || kind === 'blossom' || kind === 'pages' || kind === 'feathers' ? 90
+            : winged ? 26
+            : 12
+          )}deg`,
+        },
+        // A wing-beat: the shape squashes horizontally as it banks.
+        { scaleX: winged ? 0.55 + Math.abs(Math.sin(sway.value * 3.2)) * 0.45 : 1 },
         { scale: kind === 'steam' ? 0.6 + p * 1.6 : 1 },
       ],
       opacity: seed.opacity * fade * (kind === 'steam' ? 0.5 : 1),
     };
   });
 
-  const px = Math.round(
-    (kind === 'leaves' || kind === 'blossom' ? 18 : kind === 'steam' ? 40 : kind === 'rain' ? 2 : 4) *
-      (seed.size + 0.4),
-  );
+  const BASE_SIZE: Partial<Record<AmbienceKind, number>> = {
+    leaves: 18,
+    blossom: 18,
+    butterflies: 20,
+    moths: 18,
+    feathers: 17,
+    pages: 15,
+    steam: 40,
+    bubbles: 10,
+    rain: 2,
+    embers: 4,
+  };
+  const px = Math.round((BASE_SIZE[kind] ?? 4) * (seed.size + 0.4));
 
   return (
     <Animated.View style={[styles.particle, style]} pointerEvents="none">
@@ -148,6 +209,14 @@ function FallingParticle({
         <Leaf color={color} size={px} />
       ) : kind === 'blossom' ? (
         <Petal color={color} size={px} />
+      ) : kind === 'butterflies' ? (
+        <Butterfly color={color} size={px} />
+      ) : kind === 'moths' ? (
+        <Moth color={color} size={px} />
+      ) : kind === 'feathers' ? (
+        <Feather color={color} size={px} />
+      ) : kind === 'pages' ? (
+        <PageScrap color={color} size={px} />
       ) : (
         <View
           style={{
@@ -259,6 +328,13 @@ export function Ambience({ intensity = 1 }: { intensity?: number }) {
       snow: { count: 22, color: '#FFFFFF' },
       blossom: { count: 12, color: theme.colors.accentSoft },
       stars: { count: 30, color: theme.colors.glow },
+      // Fewer of these: a butterfly is an event, not weather.
+      butterflies: { count: 7, color: theme.colors.accent },
+      moths: { count: 8, color: withAlpha(theme.colors.glow, 0.7) },
+      feathers: { count: 9, color: theme.colors.inkFaint },
+      embers: { count: 14, color: theme.colors.glow },
+      bubbles: { count: 12, color: withAlpha(theme.colors.paperRaised, 0.7) },
+      pages: { count: 9, color: theme.colors.paperRaised },
     };
     return base[kind];
   }, [kind, theme.colors]);

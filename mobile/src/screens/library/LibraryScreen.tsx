@@ -20,6 +20,7 @@ import { BookRow, BookTile, ShelfBook } from '@/components/BookItem';
 import { BookSpine } from '@/components/BookSpine';
 import { Shelf } from '@/components/Shelf';
 import { DraggableGrid } from '@/components/DraggableGrid';
+import { ShelfOrnament, ORNAMENTS, ornamentSize } from '@/components/shelfOrnaments';
 import { BookActionsSheet } from './BookActionsSheet';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -156,7 +157,7 @@ export function LibraryScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: gutter, gap: 8, paddingVertical: theme.space.md }}
-        style={{ flexGrow: 0 }}
+        style={styles.shelfChips}
       >
         {SHELF_ORDER.map((id) => (
           <Chip
@@ -254,7 +255,7 @@ export function LibraryScreen() {
           width={width}
         />
       ) : view === 'grid' && arranging ? (
-        <ScrollView contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
+        <ScrollView style={styles.fill} contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
           <ArrangeHint />
           <DraggableGrid
             items={items}
@@ -379,17 +380,91 @@ function BookshelfView({
 }) {
   const theme = useTheme();
   const bookWidth = 74;
-  const perShelf = Math.max(2, Math.floor((width - gutter * 2) / (bookWidth + 10)));
+  const bookHeight = Math.round(bookWidth * 1.5);
+  const available = width - gutter * 2;
+  const perShelf = Math.max(2, Math.floor(available / (bookWidth + 10)));
 
+  /**
+   * A shelf is books *and* the things that live among them.
+   *
+   * Ornaments are sparse on purpose: roughly one every five to eight books, at
+   * irregular intervals, chosen from a seed rather than at random so they do
+   * not rearrange themselves on every render. A shelf should read as books
+   * with the odd object among them, not as a mantelpiece.
+   *
+   * Rows are then packed by real width, since a teacup and a bookend take very
+   * different amounts of shelf.
+   */
   const rows = useMemo(() => {
-    const out: { book: Book; entry: LibraryEntry }[][] = [];
-    for (let i = 0; i < items.length; i += perShelf) out.push(items.slice(i, i + perShelf));
+    // Deterministic, but without the visible rhythm of a fixed interval.
+    const seeded = (n: number) => {
+      const x = Math.sin(n * 12.9898 + 4.1414) * 43758.5453;
+      return x - Math.floor(x);
+    };
+
+    type Cell =
+      | { kind: 'book'; book: Book; entry: LibraryEntry; width: number }
+      | { kind: 'ornament'; index: number; width: number; height: number };
+
+    // Walk a shuffled cycle rather than picking independently each time, so
+    // the whole set gets used and the same object never appears twice in a row.
+    const order = ORNAMENTS.map((_, i) => i).sort((a, b) => seeded(a + 2) - seeded(b + 2));
+    let nextOrnament = 0;
+    const takeOrnament = () => order[nextOrnament++ % order.length];
+
+    const cells: Cell[] = [];
+    let sinceLast = 0;
+    let gapTarget = 5 + Math.floor(seeded(1) * 4);
+    let ornamentCount = 0;
+
+    items.forEach((item, i) => {
+      cells.push({ kind: 'book', book: item.book, entry: item.entry, width: bookWidth });
+      sinceLast += 1;
+
+      // Never trail an ornament after the final book — it reads as clutter
+      // rather than as something sitting between things.
+      if (sinceLast >= gapTarget && i < items.length - 1) {
+        const index = takeOrnament();
+        const { width: ow, height: oh } = ornamentSize(index, bookHeight);
+        cells.push({ kind: 'ornament', index, width: ow, height: oh });
+        ornamentCount += 1;
+        sinceLast = 0;
+        gapTarget = 5 + Math.floor(seeded(i + 31) * 4);
+      }
+    });
+
+    // A nearly empty shelf looks abandoned; give it exactly one companion.
+    if (items.length > 0 && items.length <= 6 && ornamentCount === 0) {
+      const index = takeOrnament();
+      const { width: ow, height: oh } = ornamentSize(index, bookHeight);
+      cells.push({ kind: 'ornament', index, width: ow, height: oh });
+    }
+
+    const out: Cell[][] = [];
+    let row: Cell[] = [];
+    let used = 0;
+    cells.forEach((cell) => {
+      const w = cell.width + 10;
+      if (used + w > available && row.length) {
+        out.push(row);
+        row = [];
+        used = 0;
+      }
+      row.push(cell);
+      used += w;
+    });
+    if (row.length) out.push(row);
+
+    // An ornament stranded alone on the last shelf looks like a mistake.
+    const last = out[out.length - 1];
+    if (out.length > 1 && last?.every((c) => c.kind === 'ornament')) out.pop();
+
     return out;
-  }, [items, perShelf]);
+  }, [items, available, bookHeight]);
 
   if (arranging) {
     return (
-      <ScrollView contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
+      <ScrollView style={styles.fill} contentContainerStyle={{ padding: gutter, paddingBottom: 140 }}>
         <ArrangeHint />
         <DraggableGrid
           items={items}
@@ -407,22 +482,27 @@ function BookshelfView({
 
   return (
     <ScrollView
+      style={styles.fill}
       contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: 130, paddingTop: 4 }}
       showsVerticalScrollIndicator={false}
     >
       {rows.map((row, rowIndex) => (
         <Shelf key={rowIndex} style={{ marginBottom: theme.space.xl }}>
-          {row.map((item, index) => (
-            <ShelfBook
-              key={item.entry.id}
-              book={item.book}
-              entry={item.entry}
-              index={rowIndex * perShelf + index}
-              width={bookWidth}
-              onPress={() => onPress(item.book, item.entry)}
-              onLongPress={() => onLongPress(item.book, item.entry)}
-            />
-          ))}
+          {row.map((cell, index) =>
+            cell.kind === 'book' ? (
+              <ShelfBook
+                key={cell.entry.id}
+                book={cell.book}
+                entry={cell.entry}
+                index={rowIndex * perShelf + index}
+                width={bookWidth}
+                onPress={() => onPress(cell.book, cell.entry)}
+                onLongPress={() => onLongPress(cell.book, cell.entry)}
+              />
+            ) : (
+              <ShelfOrnament key={`orn-${rowIndex}-${index}`} index={cell.index} height={cell.height} />
+            ),
+          )}
         </Shelf>
       ))}
     </ScrollView>
@@ -468,6 +548,7 @@ function SpineView({
 
   return (
     <ScrollView
+      style={styles.fill}
       contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: 130, paddingTop: 4 }}
       showsVerticalScrollIndicator={false}
     >
@@ -490,8 +571,12 @@ function SpineView({
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
-  viewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // flexShrink: 0 on the three header blocks is load-bearing. Without it a
+  // content-sized list below can squeeze them, and the top bar visibly clips.
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4, flexShrink: 0 },
+  shelfChips: { flexGrow: 0, flexShrink: 0 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
   arrangeButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8 },
+  fill: { flex: 1 },
   sortRow: { flexDirection: 'row', alignItems: 'center' },
 });

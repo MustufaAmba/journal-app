@@ -23,6 +23,7 @@ import { Rail, SectionHeader } from '@/components/Section';
 import { LogProgressSheet } from '@/components/LogProgressSheet';
 import { Sheet } from '@/components/Sheet';
 import { MarkdownText } from '@/components/MarkdownText';
+import { usePickCover } from '@/components/CoverPicker';
 
 import { BookHero, HERO_HEIGHT } from './BookHero';
 import { ReadingTimeline } from './ReadingTimeline';
@@ -82,6 +83,13 @@ export function BookDetailScreen() {
   const bookSessions = useMemo(() => sessionsForBook(sessions, bookId), [sessions, bookId]);
 
   const { data: related } = useRelatedBooks(book);
+
+  const mergeBookFields = useBooksStore((s) => s.merge);
+  // Open Library has no art for every edition, and none at all for a book
+  // added by hand — either way the reader can supply the real cover.
+  const { busy: coverBusy, fromCamera, fromLibrary } = usePickCover(book?.coverUrl, (coverUrl) =>
+    mergeBookFields(bookId, { coverUrl }),
+  );
 
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [logging, setLogging] = useState(false);
@@ -464,6 +472,24 @@ export function BookDetailScreen() {
           )}
 
           <Divider style={{ marginVertical: theme.space.lg }} />
+
+          <Text variant="label" caps tone="inkFaint" style={{ marginBottom: theme.space.sm }}>
+            {book.coverUrl ? 'Replace the cover' : 'This book has no cover'}
+          </Text>
+          <View style={[styles.actions, { marginBottom: theme.space.lg }]}>
+            <Button
+              label="Photograph it"
+              variant="secondary"
+              loading={coverBusy === 'camera'}
+              onPress={() => void fromCamera()}
+            />
+            <Button
+              label="Choose a photo"
+              variant="secondary"
+              loading={coverBusy === 'library'}
+              onPress={() => void fromLibrary()}
+            />
+          </View>
 
           <Button
             label="Save a quote"
