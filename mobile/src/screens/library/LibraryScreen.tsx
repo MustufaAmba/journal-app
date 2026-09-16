@@ -509,14 +509,18 @@ function BookshelfView({
     );
   }
 
+  // One shelf at a time, virtualised. A hundred books laid out eagerly is
+  // several hundred native views — images, gradients and shadows — built
+  // before the first one is on screen, and the phone stops answering.
   return (
-    <ScrollView
+    <FlashList
+      data={rows}
       style={styles.fill}
       contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: 130, paddingTop: 4 }}
       showsVerticalScrollIndicator={false}
-    >
-      {rows.map((row, rowIndex) => (
-        <Shelf key={rowIndex} style={{ marginBottom: theme.space.xl }}>
+      keyExtractor={(_, rowIndex) => `shelf-${rowIndex}`}
+      renderItem={({ item: row, index: rowIndex }) => (
+        <Shelf style={{ marginBottom: theme.space.xl }}>
           {row.map((cell, index) =>
             cell.kind === 'book' ? (
               <ShelfBook
@@ -533,8 +537,8 @@ function BookshelfView({
             ),
           )}
         </Shelf>
-      ))}
-    </ScrollView>
+      )}
+    />
   );
 }
 
@@ -644,14 +648,17 @@ function SpineView({
     );
   }
 
+  // Virtualised for the same reason as the bookshelf above: build one shelf
+  // of spines at a time, not the whole wall at once.
   return (
-    <ScrollView
+    <FlashList
+      data={rows}
       style={styles.fill}
       contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: 130, paddingTop: 4 }}
       showsVerticalScrollIndicator={false}
-    >
-      {rows.map((row, rowIndex) => (
-        <Shelf key={rowIndex} style={{ marginBottom: theme.space.xl }}>
+      keyExtractor={(_, rowIndex) => `spines-${rowIndex}`}
+      renderItem={({ item: row, index: rowIndex }) => (
+        <Shelf style={{ marginBottom: theme.space.xl }}>
           {row.map((cell, index) =>
             cell.kind === 'spine' ? (
               <BookSpine
@@ -679,8 +686,8 @@ function SpineView({
             ),
           )}
         </Shelf>
-      ))}
-    </ScrollView>
+      )}
+    />
   );
 }
 

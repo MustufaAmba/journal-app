@@ -45,7 +45,13 @@ function Tabs() {
   return (
     <Tab.Navigator
       tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }}
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: 'transparent' },
+        // A tab you are not looking at should cost nothing. Without this every
+        // tab you have ever opened keeps re-rendering behind the one on top.
+        freezeOnBlur: true,
+      }}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="Library" component={LibraryScreen} options={{ title: 'Library' }} />
@@ -88,6 +94,7 @@ export function RootNavigator() {
           animationDuration: 320,
           contentStyle: { backgroundColor: theme.colors.canvas },
           gestureEnabled: true,
+          freezeOnBlur: true,
         }}
       >
         {!onboarded ? (

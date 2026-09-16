@@ -119,6 +119,20 @@ const PageScrap = memo(({ color, size }: { color: string; size: number }) => (
 
 /* ------------------------------ particle ------------------------------ */
 
+/** Drawn size per kind, at seed size 1. Module scope: it never changes. */
+const BASE_SIZE: Partial<Record<AmbienceKind, number>> = {
+  leaves: 18,
+  blossom: 18,
+  butterflies: 20,
+  moths: 18,
+  feathers: 17,
+  pages: 15,
+  steam: 40,
+  bubbles: 10,
+  rain: 2,
+  embers: 4,
+};
+
 function FallingParticle({
   seed,
   height,
@@ -189,18 +203,6 @@ function FallingParticle({
     };
   });
 
-  const BASE_SIZE: Partial<Record<AmbienceKind, number>> = {
-    leaves: 18,
-    blossom: 18,
-    butterflies: 20,
-    moths: 18,
-    feathers: 17,
-    pages: 15,
-    steam: 40,
-    bubbles: 10,
-    rain: 2,
-    embers: 4,
-  };
   const px = Math.round((BASE_SIZE[kind] ?? 4) * (seed.size + 0.4));
 
   return (
@@ -320,21 +322,21 @@ export function Ambience({ intensity = 1 }: { intensity?: number }) {
 
   const config = useMemo(() => {
     const base: Record<AmbienceKind, { count: number; color: string }> = {
-      dust: { count: 20, color: theme.colors.glow },
-      leaves: { count: 12, color: theme.colors.accent },
-      steam: { count: 7, color: theme.colors.paperRaised },
-      rain: { count: 26, color: withAlpha(theme.colors.glow, 0.55) },
-      fireflies: { count: 16, color: theme.colors.glow },
-      snow: { count: 22, color: '#FFFFFF' },
-      blossom: { count: 12, color: theme.colors.accentSoft },
-      stars: { count: 30, color: theme.colors.glow },
+      dust: { count: 10, color: theme.colors.glow },
+      leaves: { count: 8, color: theme.colors.accent },
+      steam: { count: 5, color: theme.colors.paperRaised },
+      rain: { count: 14, color: withAlpha(theme.colors.glow, 0.55) },
+      fireflies: { count: 9, color: theme.colors.glow },
+      snow: { count: 12, color: '#FFFFFF' },
+      blossom: { count: 8, color: theme.colors.accentSoft },
+      stars: { count: 16, color: theme.colors.glow },
       // Fewer of these: a butterfly is an event, not weather.
-      butterflies: { count: 7, color: theme.colors.accent },
-      moths: { count: 8, color: withAlpha(theme.colors.glow, 0.7) },
-      feathers: { count: 9, color: theme.colors.inkFaint },
-      embers: { count: 14, color: theme.colors.glow },
-      bubbles: { count: 12, color: withAlpha(theme.colors.paperRaised, 0.7) },
-      pages: { count: 9, color: theme.colors.paperRaised },
+      butterflies: { count: 6, color: theme.colors.accent },
+      moths: { count: 6, color: withAlpha(theme.colors.glow, 0.7) },
+      feathers: { count: 7, color: theme.colors.inkFaint },
+      embers: { count: 9, color: theme.colors.glow },
+      bubbles: { count: 8, color: withAlpha(theme.colors.paperRaised, 0.7) },
+      pages: { count: 7, color: theme.colors.paperRaised },
     };
     return base[kind];
   }, [kind, theme.colors]);

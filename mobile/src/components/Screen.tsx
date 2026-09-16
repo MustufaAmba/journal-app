@@ -2,10 +2,38 @@ import React from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationContext } from '@react-navigation/native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
 import { PaperTexture } from './PaperTexture';
 import { Ambience } from './Ambience';
+
+/**
+ * Is this screen the one the reader is actually looking at?
+ *
+ * Tabs stay mounted once visited and stack screens stay mounted underneath the
+ * one on top, so without this every screen you have ever opened keeps its own
+ * weather running. Written by hand rather than with `useIsFocused` so that a
+ * <Screen> rendered outside a navigator still works — it simply counts as
+ * focused.
+ */
+function useScreenFocused() {
+  const navigation = React.useContext(NavigationContext);
+  const [focused, setFocused] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!navigation) return;
+    setFocused(navigation.isFocused());
+    const stopFocus = navigation.addListener('focus', () => setFocused(true));
+    const stopBlur = navigation.addListener('blur', () => setFocused(false));
+    return () => {
+      stopFocus();
+      stopBlur();
+    };
+  }, [navigation]);
+
+  return focused;
+}
 
 /**
  * The room every screen is furnished inside: theme background, a soft wash of
@@ -27,6 +55,7 @@ export function Screen({
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
+  const focused = useScreenFocused();
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.canvas }, style]}>
@@ -42,7 +71,7 @@ export function Screen({
       ) : null}
 
       <PaperTexture />
-      {ambience ? <Ambience /> : null}
+      {ambience && focused ? <Ambience /> : null}
 
       <SafeAreaView edges={edges} style={[styles.safe, contentStyle]}>
         {children}
