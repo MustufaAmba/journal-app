@@ -17,7 +17,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Sheet } from '@/components/Sheet';
 import { Divider } from '@/components/Divider';
 import { BookRow, BookTile, ShelfBook } from '@/components/BookItem';
-import { BookSpine } from '@/components/BookSpine';
+import { BookSpine, FlatBookStack, spineThickness, FLAT_WIDTH_RATIO } from '@/components/BookSpine';
 import { Shelf } from '@/components/Shelf';
 import { DraggableGrid } from '@/components/DraggableGrid';
 import { ShelfOrnament, ORNAMENTS, ornamentSize } from '@/components/shelfOrnaments';
@@ -37,6 +37,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<TabParamList, 'Library'>;
 
 type ViewMode = 'bookshelf' | 'grid' | 'list' | 'spines';
+/** The chips are the eight shelves plus one that ignores them. */
+type ShelfFilter = ShelfId | 'all';
 type SortMode = 'manual' | 'title' | 'author' | 'added' | 'rating' | 'progress';
 
 const SORTS: { value: SortMode; label: string; hint: string }[] = [
@@ -61,7 +63,7 @@ export function LibraryScreen() {
   const entries = useLibraryStore((s) => s.entries);
   const reorder = useLibraryStore((s) => s.reorder);
 
-  const [shelf, setShelf] = useState<ShelfId>(route.params?.shelf ?? 'currentlyReading');
+  const [shelf, setShelf] = useState<ShelfFilter>(route.params?.shelf ?? 'all');
   const [view, setView] = useState<ViewMode>(defaultView);
   const [sort, setSort] = useState<SortMode>('manual');
   const [arranging, setArranging] = useState(false);
@@ -73,15 +75,24 @@ export function LibraryScreen() {
   }, [route.params?.shelf]);
 
   const counts = useMemo(() => {
-    const out = {} as Record<ShelfId, number>;
+    const out = {} as Record<ShelfFilter, number>;
     SHELF_ORDER.forEach((id) => {
       out[id] = shelfEntries(entries, id).length;
     });
+    // Archive is where things go to be out of the way, so "All" leaves it out.
+    out.all = Object.values(entries).filter((e) => e.shelf !== 'archive').length;
     return out;
   }, [entries]);
 
   const items = useMemo(() => {
-    const list = shelfEntries(entries, shelf)
+    const source =
+      shelf === 'all'
+        ? Object.values(entries)
+            .filter((e) => e.shelf !== 'archive')
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+        : shelfEntries(entries, shelf);
+
+    const list = source
       .map((entry) => ({ entry, book: books[entry.bookId] }))
       .filter((item): item is { entry: LibraryEntry; book: Book } => Boolean(item.book));
 
@@ -122,7 +133,10 @@ export function LibraryScreen() {
   }, []);
 
   const handleReorder = useCallback(
-    (orderedKeys: string[]) => reorder(shelf, orderedKeys),
+    (orderedKeys: string[]) => {
+      if (shelf === 'all') return;
+      reorder(shelf, orderedKeys);
+    },
     [reorder, shelf],
   );
 
@@ -130,8 +144,9 @@ export function LibraryScreen() {
   const gridColumns = width > 700 ? 5 : 3;
   const gridWidth = Math.floor((width - gutter * 2 - 12 * (gridColumns - 1)) / gridColumns);
 
-  const meta = SHELVES[shelf];
-  const canArrange = sort === 'manual' && items.length > 1;
+  const meta = shelf === 'all' ? null : SHELVES[shelf];
+  // Manual order belongs to a shelf, so there is nothing to rearrange in "All".
+  const canArrange = shelf !== 'all' && sort === 'manual' && items.length > 1;
 
   return (
     <Screen edges={['top']}>
@@ -141,7 +156,9 @@ export function LibraryScreen() {
             Library
           </Text>
           <Text variant="caption" tone="inkFaint">
-            {Object.values(entries).length} books, all yours
+            {shelf === 'all'
+              ? `${counts.all} ${counts.all === 1 ? 'book' : 'books'}, all yours`
+              : `${items.length} of ${counts.all}`}
           </Text>
         </View>
         <IconButton name="swap-vertical-outline" label="Sort books" onPress={() => setSortSheet(true)} />
@@ -159,6 +176,14 @@ export function LibraryScreen() {
         contentContainerStyle={{ paddingHorizontal: gutter, gap: 8, paddingVertical: theme.space.md }}
         style={styles.shelfChips}
       >
+        <Chip
+          label={`All${counts.all ? `  ${counts.all}` : ''}`}
+          selected={shelf === 'all'}
+          onPress={() => {
+            setShelf('all');
+            setArranging(false);
+          }}
+        />
         {SHELF_ORDER.map((id) => (
           <Chip
             key={id}
@@ -225,8 +250,8 @@ export function LibraryScreen() {
       {!items.length ? (
         <EmptyState
           illustration={shelf === 'finished' ? 'cat' : shelf === 'wishlist' ? 'tea' : 'shelf'}
-          title={meta.name}
-          message={meta.empty}
+          title={meta?.name ?? 'Your library'}
+          message={meta?.empty ?? 'Nothing on any shelf yet. The first book is the hardest.'}
           actionLabel="Find a book"
           onAction={() => navigation.navigate('Search')}
         />
@@ -509,7 +534,14 @@ function BookshelfView({
   );
 }
 
-/** The same books seen edge-on, packed tight the way a real shelf is. */
+/**
+ * The same books seen edge-on, packed tight the way a real shelf is — with the
+ * occasional short pile lying flat among the upright ones.
+ *
+ * Nobody shelves a whole wall of standing spines. There is always a stack lying
+ * down somewhere: the ones mid-read, the ones too tall to stand. They turn up
+ * every so often rather than on a schedule, and never on every row.
+ */
 function SpineView({
   items,
   onPress,
@@ -525,24 +557,56 @@ function SpineView({
 }) {
   const theme = useTheme();
   const available = width - gutter * 2;
+  const spineHeight = 168;
 
-  // Pack spines onto shelves by their real widths rather than a fixed count.
   const rows = useMemo(() => {
-    const out: { book: Book; entry: LibraryEntry }[][] = [];
-    let current: { book: Book; entry: LibraryEntry }[] = [];
-    let used = 0;
+    const seeded = (n: number) => {
+      const x = Math.sin(n * 7.331 + 2.917) * 43758.5453;
+      return x - Math.floor(x);
+    };
 
-    items.forEach((item) => {
-      const spineWidth = Math.max(22, Math.min(52, 18 + (item.book.pageCount ?? 280) / 16)) + 3;
-      if (used + spineWidth > available && current.length) {
-        out.push(current);
-        current = [];
+    type Cell =
+      | { kind: 'spine'; item: { book: Book; entry: LibraryEntry }; width: number }
+      | { kind: 'stack'; items: { book: Book; entry: LibraryEntry }[]; width: number };
+
+    const flatWidth = Math.round(spineHeight * FLAT_WIDTH_RATIO);
+    const cells: Cell[] = [];
+
+    let i = 0;
+    let sinceStack = 0;
+    while (i < items.length) {
+      const remaining = items.length - i;
+      // Occasional, and never two piles running — a shelf with a stack every
+      // few books reads as a mess rather than as a shelf.
+      const wantsStack = remaining >= 3 && sinceStack >= 4 && seeded(i * 3 + 1) > 0.72;
+
+      if (wantsStack) {
+        const size = Math.min(remaining, 2 + Math.floor(seeded(i * 5 + 2) * 2));
+        cells.push({ kind: 'stack', items: items.slice(i, i + size), width: flatWidth });
+        i += size;
+        sinceStack = 0;
+      } else {
+        const item = items[i];
+        cells.push({ kind: 'spine', item, width: spineThickness(item.book.pageCount) });
+        i += 1;
+        sinceStack += 1;
+      }
+    }
+
+    const out: Cell[][] = [];
+    let row: Cell[] = [];
+    let used = 0;
+    cells.forEach((cell) => {
+      const w = cell.width + 3;
+      if (used + w > available && row.length) {
+        out.push(row);
+        row = [];
         used = 0;
       }
-      current.push(item);
-      used += spineWidth;
+      row.push(cell);
+      used += w;
     });
-    if (current.length) out.push(current);
+    if (row.length) out.push(row);
     return out;
   }, [items, available]);
 
@@ -554,16 +618,32 @@ function SpineView({
     >
       {rows.map((row, rowIndex) => (
         <Shelf key={rowIndex} style={{ marginBottom: theme.space.xl }}>
-          {row.map((item) => (
-            <BookSpine
-              key={item.entry.id}
-              book={item.book}
-              height={168}
-              highlighted={item.entry.shelf === 'currentlyReading'}
-              onPress={() => onPress(item.book, item.entry)}
-              onLongPress={() => onLongPress(item.book, item.entry)}
-            />
-          ))}
+          {row.map((cell, index) =>
+            cell.kind === 'spine' ? (
+              <BookSpine
+                key={cell.item.entry.id}
+                book={cell.item.book}
+                height={spineHeight}
+                highlighted={cell.item.entry.shelf === 'currentlyReading'}
+                onPress={() => onPress(cell.item.book, cell.item.entry)}
+                onLongPress={() => onLongPress(cell.item.book, cell.item.entry)}
+              />
+            ) : (
+              <FlatBookStack
+                key={`stack-${rowIndex}-${index}`}
+                books={cell.items.map((it) => it.book)}
+                spineHeight={spineHeight}
+                onPress={(bookId) => {
+                  const found = cell.items.find((it) => it.book.id === bookId);
+                  if (found) onPress(found.book, found.entry);
+                }}
+                onLongPress={(bookId) => {
+                  const found = cell.items.find((it) => it.book.id === bookId);
+                  if (found) onLongPress(found.book, found.entry);
+                }}
+              />
+            ),
+          )}
         </Shelf>
       ))}
     </ScrollView>
