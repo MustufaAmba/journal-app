@@ -1,14 +1,10 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
-import {
-  configuration,
-  describeBadMongoUri,
-  describeMongoUriWarning,
-} from './config/configuration';
+import { configuration } from './config/configuration';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 import { UsersModule } from './users/users.module';
@@ -32,20 +28,6 @@ import { HealthModule } from './health/health.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const uri = config.get<string>('mongo.uri') ?? '';
-
-        // Refuse an unusable connection string with an explanation, rather
-        // than letting the driver retry ten times and then print a hundred
-        // lines of topology internals.
-        const problem = describeBadMongoUri(uri);
-        if (problem) {
-          throw new Error(`Cannot start — MONGODB_URI is wrong.\n  ${problem}`);
-        }
-
-        // Imperfect but workable: say it on every boot and carry on. Refusing
-        // to start over this once took down a server that had been fine for
-        // weeks, which helped nobody.
-        const warning = describeMongoUriWarning(uri);
-        if (warning) new Logger('Marginalia').warn(`MONGODB_URI\n  ${warning}`);
 
         return {
           uri,
