@@ -1,10 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
-import { configuration, describeBadMongoUri } from './config/configuration';
+import {
+  configuration,
+  describeBadMongoUri,
+  describeMongoUriWarning,
+} from './config/configuration';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 import { UsersModule } from './users/users.module';
@@ -36,6 +40,12 @@ import { HealthModule } from './health/health.module';
         if (problem) {
           throw new Error(`Cannot start — MONGODB_URI is wrong.\n  ${problem}`);
         }
+
+        // Imperfect but workable: say it on every boot and carry on. Refusing
+        // to start over this once took down a server that had been fine for
+        // weeks, which helped nobody.
+        const warning = describeMongoUriWarning(uri);
+        if (warning) new Logger('Marginalia').warn(`MONGODB_URI\n  ${warning}`);
 
         return {
           uri,

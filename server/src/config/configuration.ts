@@ -38,19 +38,32 @@ export function describeBadMongoUri(uri: string): string | null {
     return 'MONGODB_URI still contains a placeholder like <password> — substitute the real value.';
   }
 
+  return null;
+}
+
+/**
+ * Something worth saying out loud that is nevertheless not a reason to refuse
+ * to start.
+ *
+ * A missing database name used to be fatal here, which was a mistake: a
+ * deployment that had been serving happily for weeks stopped booting because
+ * of a check that arrived after it. The URI works — the driver just picks
+ * "test" for you — so the right response is to say so on every boot, not to
+ * take the service down and make someone edit a connection string under
+ * pressure. What is genuinely unusable still throws above.
+ */
+export function describeMongoUriWarning(uri: string): string | null {
   if (/mongodb\+srv:\/\/[^/]*@[^/?]+\/?(\?|$)/.test(uri)) {
     return [
-      'MONGODB_URI has no database name, so the driver silently uses "test".',
+      'MONGODB_URI has no database name, so the driver is using "test".',
+      'That works, and if this server has been running this way then "test" is',
+      'where all of your data already is.',
       '',
-      'Careful here. If this server has been running without a name, every',
-      'record it has ever written is in "test" — adding a fresh name now',
-      'points it at an empty database and the data will look lost.',
-      '',
-      'Check Atlas > Browse Collections for the database holding',
-      '"library_entries", and name that one before the query string:',
+      'To make it explicit, put that same name before the query string:',
       '  ...mongodb.net/test?retryWrites=true',
       '',
-      'Only use a new name on a genuinely new deployment.',
+      'Do not put a NEW name there on a server that has already been running.',
+      'It would point at an empty database and the data would look lost.',
     ].join('\n  ');
   }
 
