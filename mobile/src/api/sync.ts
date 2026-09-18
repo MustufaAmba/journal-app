@@ -1,4 +1,4 @@
-import { api, pingBackend } from './client';
+import { api, pingBackend, ApiError } from './client';
 import { useSyncStore } from '@/store/useSyncStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLibraryStore } from '@/store/useLibraryStore';
@@ -71,6 +71,26 @@ export async function drainSyncQueue(): Promise<void> {
           }
           succeeded.push(op.id);
         } catch (error) {
+          // Deleting something the server does not have is the outcome we
+          // wanted anyway.
+          if (op.action === 'delete' && error instanceof ApiError && error.status === 404) {
+            succeeded.push(op.id);
+            continue;
+          }
+
+          // A 404 on a write means the route is not there — an app that has
+          // been updated talking to a server that has not. Counting that as a
+          // failed attempt would burn through the retry budget and silently
+          // drop the record, which for a hand-added book means losing it for
+          // good. Stop instead, keep everything queued, and try again later.
+          if (error instanceof ApiError && error.status === 404) {
+            if (succeeded.length) useSyncStore.getState().resolve(succeeded);
+            useSyncStore
+              .getState()
+              .setStatus('error', 'This server is older than the app — waiting for it to catch up.');
+            return;
+          }
+
           lastMessage = error instanceof Error ? error.message : 'Sync failed';
           failed.push(op.id);
         }

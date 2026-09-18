@@ -35,6 +35,8 @@ type BooksState = {
   putMany: (books: Book[]) => void;
   /** write without publishing — for records that came from the server */
   cache: (book: Book) => void;
+  /** the same, in one write: persisting rewrites the whole catalogue */
+  cacheMany: (books: Book[]) => void;
   get: (id: string) => Book | undefined;
   /** merge freshly fetched fields over a cached book without losing what we had */
   merge: (id: string, patch: Partial<Book>) => void;
@@ -79,6 +81,15 @@ export const useBooksStore = create<BooksState>()(
           return { byId: next };
         }),
       cache: (book) => set((s) => ({ byId: { ...s.byId, [book.id]: mergeBook(s.byId[book.id], book) } })),
+      cacheMany: (books) =>
+        set((s) => {
+          if (!books.length) return s;
+          const next = { ...s.byId };
+          books.forEach((book) => {
+            next[book.id] = mergeBook(next[book.id], book);
+          });
+          return { byId: next };
+        }),
       get: (id) => get().byId[id],
       merge: (id, patch) =>
         set((s) => {

@@ -20,6 +20,7 @@ import { CelebrationProvider } from '@/components/CelebrationProvider';
 import { DialogProvider } from '@/components/DialogProvider';
 import { LaunchScreen } from '@/components/LaunchScreen';
 import { hydrateStores } from '@/store';
+import { flushWrites } from '@/lib/storage';
 import { drainSyncQueue, syncOnSignIn } from '@/api/sync';
 import { useSettingsStore, useAuthStore } from '@/store';
 import { scheduleReadingReminder } from '@/lib/notifications';
@@ -31,9 +32,15 @@ void SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // The app is local-first; network results are a bonus, never a blocker.
       retry: 1,
-      staleTime: 1000 * 60 * 5,
+      // Always go and ask. Anything already fetched is handed over straight
+      // away so nothing ever blocks on the network, but a fresh request goes
+      // out behind it and the screen updates when it lands. Offline, the
+      // request fails and the cached copy simply stays.
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnReconnect: 'always',
+      // Kept for a day so the fallback still exists after a night offline.
       gcTime: 1000 * 60 * 60 * 24,
       refetchOnWindowFocus: false,
       networkMode: 'offlineFirst',
@@ -72,6 +79,10 @@ export default function App() {
       if (state === 'active') {
         useSettingsStore.getState().patch({ lastOpenedAt: Date.now() });
         void drainSyncQueue();
+      } else {
+        // Persisted writes are coalesced, so anything from the last moment of
+        // use is still in memory. Leaving the app is the deadline.
+        flushWrites();
       }
     });
     return () => subscription.remove();

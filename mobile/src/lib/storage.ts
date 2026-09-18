@@ -132,9 +132,55 @@ export const kv = {
   },
 };
 
-/** Zustand persist adapter over the same engine. */
+/**
+ * Zustand persist adapter over the same engine — with the writes coalesced.
+ *
+ * Zustand re-serialises a whole store on every single change to it, and these
+ * stores are not small: a hundred books with their blurbs is a couple of
+ * hundred kilobytes of JSON. Tapping through a shelf, dragging a book, typing
+ * in the journal — each one was stringifying the lot on the JS thread, which
+ * is exactly the thread that has to answer the next tap.
+ *
+ * So writes are held for a moment and collapsed: the last value for a key
+ * within the window is the only one that reaches storage. Everything pending
+ * is flushed the instant the app goes to the background, and `flushWrites` is
+ * there for anywhere else that needs to be certain.
+ */
+const WRITE_DELAY_MS = 350;
+
+const pendingWrites = new Map<string, string | null>();
+let writeTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function flushWrites(): void {
+  if (writeTimer) {
+    clearTimeout(writeTimer);
+    writeTimer = null;
+  }
+  if (!pendingWrites.size) return;
+  pendingWrites.forEach((value, key) => {
+    if (value === null) engine.delete(key);
+    else engine.set(key, value);
+  });
+  pendingWrites.clear();
+}
+
+function scheduleWrite(key: string, value: string | null) {
+  pendingWrites.set(key, value);
+  if (writeTimer) return;
+  writeTimer = setTimeout(() => {
+    writeTimer = null;
+    flushWrites();
+  }, WRITE_DELAY_MS);
+}
+
 export const zustandStorage = {
-  getItem: (name: string) => engine.getString(name) ?? null,
-  setItem: (name: string, value: string) => engine.set(name, value),
-  removeItem: (name: string) => engine.delete(name),
+  // Reads must see a write that has not reached the engine yet, or a store
+  // rehydrated during the window would read its own stale value.
+  getItem: (name: string) => {
+    const pending = pendingWrites.get(name);
+    if (pending !== undefined) return pending;
+    return engine.getString(name) ?? null;
+  },
+  setItem: (name: string, value: string) => scheduleWrite(name, value),
+  removeItem: (name: string) => scheduleWrite(name, null),
 };

@@ -37,19 +37,42 @@ async function enrich(book: Book, signal?: AbortSignal): Promise<Book> {
   return Object.keys(gaps).length ? mergeBook(book, { ...gaps, source: book.source ?? 'openlibrary' }) : book;
 }
 
-/** Search, cache the results so tapping through is instant and offline-safe. */
+/**
+ * Search. Our own backend first — it caches every result and fills Open
+ * Library's thin records from Google — then Open Library directly if the
+ * backend cannot answer.
+ */
 export async function searchBooks(
   query: string,
   mode: ol.SearchMode = 'all',
   signal?: AbortSignal,
 ): Promise<Book[]> {
+  const viaServer = booksFromServer(
+    await askServer<Record<string, unknown>[]>(
+      `/books/search?q=${encodeURIComponent(query)}&mode=${encodeURIComponent(mode)}`,
+      signal,
+    ),
+  );
+  if (viaServer.length) {
+    useBooksStore.getState().cacheMany(viaServer);
+    return viaServer;
+  }
+
   const results = await ol.search(query, mode, 24, signal);
-  useBooksStore.getState().putMany(results);
+  useBooksStore.getState().cacheMany(results);
   return results;
 }
 
 /** Scanner path: ISBN in, fully-formed book out. */
 export async function lookupIsbn(isbn: string, signal?: AbortSignal): Promise<Book | null> {
+  const viaServer = fromServerCache(
+    await askServer<Record<string, unknown>>(`/books/isbn/${encodeURIComponent(isbn)}`, signal),
+  );
+  if (viaServer) {
+    useBooksStore.getState().cache(viaServer);
+    return viaServer;
+  }
+
   const fromOpenLibrary = await ol.getByIsbn(isbn, signal).catch(() => null);
 
   if (!fromOpenLibrary) {
@@ -65,12 +88,12 @@ export async function lookupIsbn(isbn: string, signal?: AbortSignal): Promise<Bo
       source: 'google',
       fetchedAt: Date.now(),
     } as Book;
-    useBooksStore.getState().put(book);
+    useBooksStore.getState().cache(book);
     return book;
   }
 
   const enriched = await enrich(fromOpenLibrary, signal);
-  useBooksStore.getState().put(enriched);
+  useBooksStore.getState().cache(enriched);
   return enriched;
 }
 
@@ -116,7 +139,7 @@ export async function getBookDetail(id: string, signal?: AbortSignal): Promise<B
     if (!detail) return cached ?? Promise.reject(new Error('Book not found'));
 
     const enriched = await enrich(mergeBook(cached, detail), signal);
-    useBooksStore.getState().put(enriched);
+    useBooksStore.getState().cache(enriched);
     return enriched;
   } catch (error) {
     // Offline or the API is down — the cached copy is still perfectly good.
@@ -126,11 +149,37 @@ export async function getBookDetail(id: string, signal?: AbortSignal): Promise<B
 }
 
 export const getAuthor = ol.getAuthor;
-export const getSubjectShelf = ol.getSubjectShelf;
+
+/** A themed shelf ("cosy mysteries"). Backend first, Open Library after. */
+export async function getSubjectShelf(subject: string, limit = 12, signal?: AbortSignal): Promise<Book[]> {
+  const viaServer = booksFromServer(
+    await askServer<Record<string, unknown>[]>(
+      `/books/subject/${encodeURIComponent(subject)}?limit=${limit}`,
+      signal,
+    ),
+  );
+  if (viaServer.length) {
+    useBooksStore.getState().cacheMany(viaServer);
+    return viaServer;
+  }
+  const shelf = await ol.getSubjectShelf(subject, limit, signal);
+  useBooksStore.getState().cacheMany(shelf);
+  return shelf;
+}
 
 export async function getRelatedBooks(book: Book, signal?: AbortSignal): Promise<Book[]> {
+  const viaServer = booksFromServer(
+    await askServer<Record<string, unknown>[]>(
+      `/books/${encodeURIComponent(book.id)}/related`,
+      signal,
+    ),
+  );
+  if (viaServer.length) {
+    useBooksStore.getState().cacheMany(viaServer);
+    return viaServer;
+  }
   const related = await ol.getRelated(book, signal);
-  useBooksStore.getState().putMany(related);
+  useBooksStore.getState().cacheMany(related);
   return related;
 }
 
@@ -172,17 +221,29 @@ export function createManualBook(input: {
  * the caller's signal to fall back to the device.
  */
 async function fetchFromServer(id: string, signal?: AbortSignal): Promise<Book | null> {
+  const doc = await askServer<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`, signal);
+  return fromServerCache(doc);
+}
+
+/**
+ * One read against our own backend, or null.
+ *
+ * Every /books route is public, so these go out anonymously — no token, and
+ * none of the 401-refresh machinery. Not patient either: each caller has
+ * something to fall back on, and sitting out a sixty-second wake-up to learn
+ * we are offline is worse than using it.
+ */
+async function askServer<T>(path: string, signal?: AbortSignal): Promise<T | null> {
   try {
-    return fromServerCache(
-      await api.get<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`, {
-        signal,
-        timeoutMs: 8000,
-        patient: false,
-      }),
-    );
+    return await api.get<T>(path, { signal, timeoutMs: 8000, patient: false, anonymous: true });
   } catch {
     return null;
   }
+}
+
+/** Server documents in, Books out, anything unusable dropped. */
+function booksFromServer(docs: Record<string, unknown>[] | null): Book[] {
+  return (docs ?? []).map(fromServerCache).filter((b): b is Book => Boolean(b));
 }
 
 /* --------------------------- restoring a shelf --------------------------- */
@@ -249,19 +310,29 @@ export async function restoreBooks(
   const unavailable = ids.filter((id) => id.startsWith('manual_'));
   let restored = 0;
 
+  // Written in batches, not one at a time. Persisting the store rewrites the
+  // whole catalogue, so a hundred single writes is a hundred serialisations of
+  // a growing map — quadratic, and enough to lock the phone up on its own.
+  const BATCH = 10;
+  let pending: Book[] = [];
+  const flush = () => {
+    if (!pending.length) return;
+    useBooksStore.getState().cacheMany(pending);
+    pending = [];
+  };
+
   let cursor = 0;
   const worker = async () => {
     while (cursor < askable.length) {
       const id = askable[cursor++];
-      try {
-        const book = fromServerCache(await api.get<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`));
-        if (book) {
-          useBooksStore.getState().cache(book);
-          restored += 1;
-        } else {
-          unavailable.push(id);
-        }
-      } catch {
+      const book = fromServerCache(
+        await askServer<Record<string, unknown>>(`/books/${encodeURIComponent(id)}`),
+      );
+      if (book) {
+        pending.push(book);
+        restored += 1;
+        if (pending.length >= BATCH) flush();
+      } else {
         // One book the server cannot produce must not stop the other hundred.
         unavailable.push(id);
       }
@@ -269,5 +340,6 @@ export async function restoreBooks(
   };
 
   await Promise.all(Array.from({ length: Math.min(concurrency, askable.length) }, worker));
+  flush();
   return { restored, unavailable };
 }
