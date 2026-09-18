@@ -30,7 +30,7 @@ export function describeBadMongoUri(uri: string): string | null {
     return [
       'That is the Atlas SQL / Data Federation endpoint, not the database.',
       'In Atlas use Connect → Drivers, and copy the string that looks like:',
-      '  mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/marginalia',
+      '  mongodb+srv://USER:PASSWORD@cluster0.<YOUR-ID>.mongodb.net/marginalia',
     ].join('\n  ');
   }
 

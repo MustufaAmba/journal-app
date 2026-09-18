@@ -76,10 +76,25 @@ function explainStartupFailure(error: unknown): string | null {
   }
 
   if (/ENOTFOUND|querySrv|EAI_AGAIN/i.test(message)) {
+    // A hostname made of x's or angle brackets is a placeholder out of some
+    // documentation — including ours — rather than a typo. Say so plainly,
+    // because the failure reads like a network problem and is not one.
+    const placeholder = /x{3,}|<[^>]*>|YOUR-ID|example\.com/i.test(message);
     return [
       'The MongoDB hostname does not resolve, so the connection string is wrong.',
-      'In Atlas use Connect → Drivers and copy the whole string; the host should',
-      'look like cluster0.xxxxx.mongodb.net.',
+      ...(placeholder
+        ? [
+            '',
+            "That host is a placeholder from an example, not a real cluster —",
+            'the part standing in for your own cluster id was left as-is.',
+            '',
+            'Take the string that was already working and edit only what you',
+            'mean to change, or get a fresh one from Atlas > Connect > Drivers.',
+          ]
+        : [
+            'In Atlas use Connect > Drivers and copy the whole string; the host',
+            'should look like cluster0.<YOUR-ID>.mongodb.net, with your own id.',
+          ]),
     ].join('\n  ');
   }
 
@@ -90,7 +105,7 @@ function explainStartupFailure(error: unknown): string | null {
       '  1. Atlas → Network Access allows 0.0.0.0/0 and shows Active',
       '  2. The cluster is running, not Paused',
       '  3. MONGODB_URI came from Connect → Drivers (host looks like',
-      '     cluster0.xxxxx.mongodb.net, not atlas-sql-....query.mongodb.net)',
+      '     cluster0.<YOUR-ID>.mongodb.net, not atlas-sql-....query.mongodb.net)',
       '  4. The username and password are right, and any special characters',
       '     in the password are percent-encoded',
     ].join('\n  ');

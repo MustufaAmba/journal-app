@@ -26,7 +26,7 @@ npm run dev               # http://localhost:4000
 
 | Variable | | Notes |
 |---|---|---|
-| `MONGODB_URI` | **required** | `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority` |
+| `MONGODB_URI` | **required** | `mongodb+srv://user:pass@cluster0.<YOUR-ID>.mongodb.net/marginalia?retryWrites=true&w=majority` |
 | `JWT_ACCESS_SECRET` | **required** | `openssl rand -base64 48` |
 | `JWT_REFRESH_SECRET` | **required** | The same command again — a *different* value |
 
@@ -144,7 +144,7 @@ M0 tier) and only the API runs on Render. About ten minutes, start to finish.
    query string:
 
    ```
-   mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority
+   mongodb+srv://USER:PASSWORD@cluster0.<YOUR-ID>.mongodb.net/marginalia?retryWrites=true&w=majority
                                                           ^^^^^^^^^^^
    ```
 

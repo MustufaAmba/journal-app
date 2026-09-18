@@ -41,7 +41,10 @@ services:
         generateValue: true
 
       # The one thing Render will prompt you for.
-      # mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/marginalia?retryWrites=true&w=majority
+      # Atlas > Connect > Drivers gives you this, WITHOUT a database name:
+      #   mongodb+srv://user:password@cluster0.<YOUR-ID>.mongodb.net/?retryWrites=true&w=majority
+      # Add the database name before the '?' or everything lands in "test":
+      #   mongodb+srv://user:password@cluster0.<YOUR-ID>.mongodb.net/marginalia?retryWrites=true&w=majority
       - key: MONGODB_URI
         sync: false
 
