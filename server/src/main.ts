@@ -80,9 +80,29 @@ function explainStartupFailure(error: unknown): string | null {
     // documentation — including ours — rather than a typo. Say so plainly,
     // because the failure reads like a network problem and is not one.
     const placeholder = /x{3,}|<[^>]*>|YOUR-ID|example\.com/i.test(message);
+    // A "hostname" with no dots in it is not a hostname. Overwhelmingly it is
+    // the password, because an unencoded @ in the password moves where the
+    // driver thinks the host starts — or because the cluster host was dropped
+    // while hand-editing. Either way the value is now in the logs.
+    const host = /_mongodb\._tcp\.([^\s'"]+)/.exec(message)?.[1] ?? '';
+    const looksLikeSecret = Boolean(host) && !host.includes('.');
     return [
       'The MongoDB hostname does not resolve, so the connection string is wrong.',
-      ...(placeholder
+      ...(looksLikeSecret
+        ? [
+            '',
+            'That host has no dots in it, so it is not a hostname at all. The',
+            'driver reads everything after the LAST @ as the host, so this is',
+            'usually the password — either the cluster host is missing, or an',
+            'unencoded @ in the password moved where the host begins.',
+            '',
+            'Treat that value as exposed: it is in these logs now. Rotate the',
+            'database password, and percent-encode @ : / ? # [ ] % if you keep',
+            'special characters in it.',
+            '',
+            'The host should look like cluster0.<YOUR-ID>.mongodb.net.',
+          ]
+        : placeholder
         ? [
             '',
             "That host is a placeholder from an example, not a real cluster —",
