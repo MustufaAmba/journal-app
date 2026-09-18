@@ -40,8 +40,17 @@ export function describeBadMongoUri(uri: string): string | null {
 
   if (/mongodb\+srv:\/\/[^/]*@[^/?]+\/?(\?|$)/.test(uri)) {
     return [
-      'MONGODB_URI has no database name, so everything would be written to "test".',
-      'Add it before the query string:  ...mongodb.net/marginalia?retryWrites=true',
+      'MONGODB_URI has no database name, so the driver silently uses "test".',
+      '',
+      'Careful here. If this server has been running without a name, every',
+      'record it has ever written is in "test" — adding a fresh name now',
+      'points it at an empty database and the data will look lost.',
+      '',
+      'Check Atlas > Browse Collections for the database holding',
+      '"library_entries", and name that one before the query string:',
+      '  ...mongodb.net/test?retryWrites=true',
+      '',
+      'Only use a new name on a genuinely new deployment.',
     ].join('\n  ');
   }
 
